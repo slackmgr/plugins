@@ -1,0 +1,65 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+cover.html
+coverage.html
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Vendor directory
+vendor/
+
+# Build output
+bin/
+out/
+dist/
+
+# env files and secrets
+.env
+secrets/
+*.decrypted_backup
+*.encrypted_backup
+.decrypted*
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.dccache
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Debug and temp files
+*.log
+*.lock
+*.temp
+*.tmp
+*.debug
+debug*.txt
+
+# Profiling
+profiling/
+profile*.pdf
+
+# Security scan output
+results.sarif
+
+# AI tools
+.claude/*.local.json
