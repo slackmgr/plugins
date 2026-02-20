@@ -37,6 +37,7 @@ jobs:
       with:
         go-version-file: 'postgres/go.mod'
         cache: true
+        cache-dependency-path: 'postgres/go.sum'
 
     - name: Run go fmt
       working-directory: postgres
@@ -74,6 +75,7 @@ jobs:
       with:
         go-version-file: 'postgres/go.mod'
         cache: true
+        cache-dependency-path: 'postgres/go.sum'
 
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v9.2.0
