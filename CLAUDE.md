@@ -13,6 +13,7 @@ plugins/
 ├── .github/workflows/ci-sqs.yml      # CI for sqs (path-filtered)
 ├── .github/workflows/ci-dynamodb.yml # CI for dynamodb (path-filtered)
 ├── .github/workflows/ci-postgres.yml # CI for postgres (path-filtered)
+├── .github/workflows/ci-pubsub.yml   # CI for pubsub (path-filtered)
 ├── .golangci.yaml             # Shared linter config (discovered by golangci-lint in each subdir)
 ├── sqs/                       # AWS SQS plugin — module: github.com/slackmgr/plugins/sqs
 │   ├── go.mod
@@ -23,6 +24,10 @@ plugins/
 │   ├── go.sum
 │   └── CLAUDE.md
 ├── postgres/                  # PostgreSQL plugin — module: github.com/slackmgr/plugins/postgres
+│   ├── go.mod
+│   ├── go.sum
+│   └── CLAUDE.md
+├── pubsub/                    # GCP Pub/Sub plugin — module: github.com/slackmgr/plugins/pubsub
 │   ├── go.mod
 │   ├── go.sum
 │   └── CLAUDE.md
@@ -59,6 +64,7 @@ Tags are **prefixed with the plugin name** to support independent versioning of 
 sqs/v0.2.0
 dynamodb/v0.3.0
 postgres/v0.3.3
+pubsub/v0.1.0
 <future-plugin>/v1.0.0
 ```
 

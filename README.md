@@ -11,6 +11,7 @@ Each plugin is a separate Go module living in its own subdirectory. Modules are 
 | [sqs](./sqs/) | `github.com/slackmgr/plugins/sqs` | AWS SQS queue consumer and webhook handler |
 | [dynamodb](./dynamodb/) | `github.com/slackmgr/plugins/dynamodb` | AWS DynamoDB storage backend |
 | [postgres](./postgres/) | `github.com/slackmgr/plugins/postgres` | PostgreSQL storage backend |
+| [pubsub](./pubsub/) | `github.com/slackmgr/plugins/pubsub` | Google Cloud Pub/Sub queue consumer and webhook handler |
 
 ## Versioning
 
