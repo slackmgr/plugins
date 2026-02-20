@@ -9,6 +9,7 @@ Each plugin is a separate Go module living in its own subdirectory. Modules are 
 | Plugin | Module path | Description |
 |--------|-------------|-------------|
 | [sqs](./sqs/) | `github.com/slackmgr/plugins/sqs` | AWS SQS queue consumer and webhook handler |
+| [dynamodb](./dynamodb/) | `github.com/slackmgr/plugins/dynamodb` | AWS DynamoDB storage backend |
 
 ## Versioning
 

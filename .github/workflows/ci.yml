@@ -17,8 +17,12 @@ concurrency:
 
 jobs:
   test:
-    name: Test
+    name: Test (${{ matrix.plugin }})
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        plugin: [sqs, dynamodb]
 
     steps:
     - name: Checkout code
@@ -27,11 +31,11 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v6.2.0
       with:
-        go-version-file: 'sqs/go.mod'
+        go-version-file: '${{ matrix.plugin }}/go.mod'
         cache: true
 
     - name: Run go fmt
-      working-directory: sqs
+      working-directory: ${{ matrix.plugin }}
       run: |
         unformatted=$(gofmt -l .)
         if [ -n "$unformatted" ]; then
@@ -41,21 +45,25 @@ jobs:
         fi
 
     - name: Run go vet
-      working-directory: sqs
+      working-directory: ${{ matrix.plugin }}
       run: go vet ./...
 
     - name: Run tests
-      working-directory: sqs
+      working-directory: ${{ matrix.plugin }}
       run: |
         go test -race -cover ./... 2>&1 | tee /tmp/test-output.txt
         test_exit=${PIPESTATUS[0]}
-        echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "## Test Coverage (${{ matrix.plugin }})" >> $GITHUB_STEP_SUMMARY
         grep "coverage:" /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY || true
         exit $test_exit
 
   lint:
-    name: Lint
+    name: Lint (${{ matrix.plugin }})
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        plugin: [sqs, dynamodb]
 
     steps:
     - name: Checkout code
@@ -64,7 +72,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6.2.0
       with:
-        go-version-file: 'sqs/go.mod'
+        go-version-file: '${{ matrix.plugin }}/go.mod'
         cache: true
 
     - name: Run golangci-lint
@@ -72,11 +80,15 @@ jobs:
       with:
         version: latest
         args: --timeout=1m
-        working-directory: sqs
+        working-directory: ${{ matrix.plugin }}
 
   security:
-    name: Security
+    name: Security (${{ matrix.plugin }})
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        plugin: [sqs, dynamodb]
 
     steps:
     - name: Checkout code
@@ -85,7 +97,7 @@ jobs:
     - name: Run Gosec Security Scanner
       uses: securego/gosec@v2.23.0
       with:
-        args: '-no-fail -fmt sarif -out results.sarif ./sqs/...'
+        args: '-no-fail -fmt sarif -out results.sarif ./${{ matrix.plugin }}/...'
 
     - name: Upload Gosec results
       uses: github/codeql-action/upload-sarif@v4.32.3

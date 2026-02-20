@@ -10,9 +10,13 @@ This is the `slackmgr/plugins` monorepo — a single repository hosting all Slac
 
 ```
 plugins/
-├── .github/workflows/ci.yml   # CI for all modules
+├── .github/workflows/ci.yml   # CI for all modules (matrix across plugins)
 ├── .golangci.yaml             # Shared linter config (discovered by golangci-lint in each subdir)
 ├── sqs/                       # AWS SQS plugin — module: github.com/slackmgr/plugins/sqs
+│   ├── go.mod
+│   ├── go.sum
+│   └── CLAUDE.md
+├── dynamodb/                  # AWS DynamoDB plugin — module: github.com/slackmgr/plugins/dynamodb
 │   ├── go.mod
 │   ├── go.sum
 │   └── CLAUDE.md
@@ -46,6 +50,7 @@ Tags are **prefixed with the plugin name** to support independent versioning of 
 
 ```
 sqs/v0.2.0
+dynamodb/v0.3.0
 <future-plugin>/v1.0.0
 ```
 
@@ -100,5 +105,5 @@ Follows [Semantic Versioning](https://semver.org/) per plugin:
 1. Create a subdirectory: `mkdir <plugin>`
 2. Initialise a module: `cd <plugin> && go mod init github.com/slackmgr/plugins/<plugin>`
 3. Add a `Makefile`, `README.md`, `CHANGELOG.md`, and `CLAUDE.md` following the `sqs/` pattern
-4. Extend `.github/workflows/ci.yml` with a new job or matrix entry for the plugin. Also update the `go-version-file` references (currently hardcoded to `sqs/go.mod`) to a consistent source of truth, or use a matrix that specifies each module's path.
+4. Add the plugin name to the `matrix.plugin` list in `.github/workflows/ci.yml`. The CI uses a matrix strategy — no other changes to the workflow are needed.
 5. Add the plugin to the table in the root `README.md`
