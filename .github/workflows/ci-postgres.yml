@@ -1,10 +1,18 @@
-name: CI
+name: CI (postgres)
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'postgres/**'
+      - '.golangci.yaml'
+      - '.github/workflows/ci-postgres.yml'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'postgres/**'
+      - '.golangci.yaml'
+      - '.github/workflows/ci-postgres.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,12 +25,8 @@ concurrency:
 
 jobs:
   test:
-    name: Test (${{ matrix.plugin }})
+    name: Test
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        plugin: [sqs, dynamodb, postgres]
 
     steps:
     - name: Checkout code
@@ -31,11 +35,11 @@ jobs:
     - name: Setup Go
       uses: actions/setup-go@v6.2.0
       with:
-        go-version-file: '${{ matrix.plugin }}/go.mod'
+        go-version-file: 'postgres/go.mod'
         cache: true
 
     - name: Run go fmt
-      working-directory: ${{ matrix.plugin }}
+      working-directory: postgres
       run: |
         unformatted=$(gofmt -l .)
         if [ -n "$unformatted" ]; then
@@ -45,25 +49,21 @@ jobs:
         fi
 
     - name: Run go vet
-      working-directory: ${{ matrix.plugin }}
+      working-directory: postgres
       run: go vet ./...
 
     - name: Run tests
-      working-directory: ${{ matrix.plugin }}
+      working-directory: postgres
       run: |
         go test -race -cover ./... 2>&1 | tee /tmp/test-output.txt
         test_exit=${PIPESTATUS[0]}
-        echo "## Test Coverage (${{ matrix.plugin }})" >> $GITHUB_STEP_SUMMARY
+        echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
         grep "coverage:" /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY || true
         exit $test_exit
 
   lint:
-    name: Lint (${{ matrix.plugin }})
+    name: Lint
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        plugin: [sqs, dynamodb, postgres]
 
     steps:
     - name: Checkout code
@@ -72,7 +72,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6.2.0
       with:
-        go-version-file: '${{ matrix.plugin }}/go.mod'
+        go-version-file: 'postgres/go.mod'
         cache: true
 
     - name: Run golangci-lint
@@ -80,15 +80,11 @@ jobs:
       with:
         version: latest
         args: --timeout=1m
-        working-directory: ${{ matrix.plugin }}
+        working-directory: postgres
 
   security:
-    name: Security (${{ matrix.plugin }})
+    name: Security
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        plugin: [sqs, dynamodb, postgres]
 
     steps:
     - name: Checkout code
@@ -97,7 +93,7 @@ jobs:
     - name: Run Gosec Security Scanner
       uses: securego/gosec@v2.23.0
       with:
-        args: '-no-fail -fmt sarif -out results.sarif ./${{ matrix.plugin }}/...'
+        args: '-no-fail -fmt sarif -out results.sarif ./postgres/...'
 
     - name: Upload Gosec results
       uses: github/codeql-action/upload-sarif@v4.32.3
