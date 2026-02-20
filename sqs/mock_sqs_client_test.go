@@ -1,4 +1,3 @@
-//nolint:testpackage // Mock must be in sqs package to access unexported types
 package sqs
 
 import (

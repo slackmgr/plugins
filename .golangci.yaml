@@ -13,6 +13,7 @@ linters:
     - gocognit
     - gocyclo
     - godot
+    - godox
     - gomodguard
     - interfacebloat
     - lll
@@ -21,7 +22,7 @@ linters:
     - nestif
     - nlreturn
     - noinlineerr
-    - sqlclosecheck
+    - testpackage
     - varnamelen
     - wrapcheck
     - wsl
@@ -48,7 +49,7 @@ linters:
           - gochecknoglobals
           - gosec
           - revive
-        path: _test\.go
+        path: (.+)_test\.go
       - linters:
           - asasalint
           - goconst
