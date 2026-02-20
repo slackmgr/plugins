@@ -20,6 +20,10 @@ plugins/
 │   ├── go.mod
 │   ├── go.sum
 │   └── CLAUDE.md
+├── postgres/                  # PostgreSQL plugin — module: github.com/slackmgr/plugins/postgres
+│   ├── go.mod
+│   ├── go.sum
+│   └── CLAUDE.md
 └── <future-plugin>/           # Each new plugin follows the same pattern
 ```
 
@@ -51,6 +55,7 @@ Tags are **prefixed with the plugin name** to support independent versioning of 
 ```
 sqs/v0.2.0
 dynamodb/v0.3.0
+postgres/v0.3.3
 <future-plugin>/v1.0.0
 ```
 

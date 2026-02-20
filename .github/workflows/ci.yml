@@ -22,7 +22,7 @@ jobs:
 
     strategy:
       matrix:
-        plugin: [sqs, dynamodb]
+        plugin: [sqs, dynamodb, postgres]
 
     steps:
     - name: Checkout code
@@ -63,7 +63,7 @@ jobs:
 
     strategy:
       matrix:
-        plugin: [sqs, dynamodb]
+        plugin: [sqs, dynamodb, postgres]
 
     steps:
     - name: Checkout code
@@ -88,7 +88,7 @@ jobs:
 
     strategy:
       matrix:
-        plugin: [sqs, dynamodb]
+        plugin: [sqs, dynamodb, postgres]
 
     steps:
     - name: Checkout code

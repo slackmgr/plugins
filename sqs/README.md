@@ -1,4 +1,4 @@
-# sqs plugin
+# sqs
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/slackmgr/plugins/sqs.svg)](https://pkg.go.dev/github.com/slackmgr/plugins/sqs)
 [![Go Report Card](https://goreportcard.com/badge/github.com/slackmgr/plugins/sqs)](https://goreportcard.com/report/github.com/slackmgr/plugins/sqs)
@@ -7,7 +7,7 @@
 
 An AWS SQS queue backend for [Slack Manager](https://github.com/slackmgr/core). Provides FIFO queue consumption with automatic visibility timeout extension and a webhook handler for forwarding HTTP callbacks to SQS queues. Uses AWS SDK v2.
 
-This module lives in the [`slackmgr/plugins`](https://github.com/slackmgr/plugins) monorepo under the `sqs/` subdirectory. Versions are tagged using the `sqs/vX.Y.Z` convention (e.g. `sqs/v0.2.0`).
+Part of the [slackmgr/plugins](https://github.com/slackmgr/plugins) monorepo. Versioned independently using the `sqs/vX.Y.Z` tag convention.
 
 ## Installation
 
