@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/slackmgr/plugins/workflows/CI/badge.svg)](https://github.com/slackmgr/plugins/actions)
 
-An AWS SQS queue backend for [Slack Manager](https://github.com/slackmgr/slack-manager). Provides FIFO queue consumption with automatic visibility timeout extension and a webhook handler for forwarding HTTP callbacks to SQS queues. Uses AWS SDK v2.
+An AWS SQS queue backend for [Slack Manager](https://github.com/slackmgr/core). Provides FIFO queue consumption with automatic visibility timeout extension and a webhook handler for forwarding HTTP callbacks to SQS queues. Uses AWS SDK v2.
 
 This module lives in the [`slackmgr/plugins`](https://github.com/slackmgr/plugins) monorepo under the `sqs/` subdirectory. Versions are tagged using the `sqs/vX.Y.Z` convention (e.g. `sqs/v0.2.0`).
 

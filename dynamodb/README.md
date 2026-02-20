@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/slackmgr/plugins/workflows/CI/badge.svg)](https://github.com/slackmgr/plugins/actions)
 
-A DynamoDB storage backend for [Slack Manager](https://github.com/slackmgr/slack-manager). Implements the [`types.DB`](https://github.com/slackmgr/types) interface using a single-table design with AWS SDK v2.
+A DynamoDB storage backend for [Slack Manager](https://github.com/slackmgr/core). Implements the [`types.DB`](https://github.com/slackmgr/types) interface using a single-table design with AWS SDK v2.
 
 Part of the [slackmgr/plugins](https://github.com/slackmgr/plugins) monorepo. Versioned independently using the `dynamodb/vX.Y.Z` tag convention.
 

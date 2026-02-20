@@ -1,6 +1,6 @@
 # slackmgr/plugins
 
-A monorepo for all [Slack Manager](https://github.com/slackmgr/slack-manager) plugins.
+A monorepo for all [Slack Manager](https://github.com/slackmgr/core) plugins.
 
 Each plugin is a separate Go module living in its own subdirectory. Modules are versioned independently using the [Go multi-module tag convention](https://go.dev/doc/modules/managing-source#multiple-module-source): tags are prefixed with the plugin name (e.g. `sqs/v0.2.0`).
 
