@@ -36,10 +36,11 @@ There is **no root `go.mod`**. Each plugin is a fully independent Go module.
 Run all commands from within the relevant plugin subdirectory (e.g. `cd sqs`):
 
 ```bash
-make test       # gosec, go fmt, go test (with -race and -cover), go vet
-make lint       # golangci-lint (picks up root .golangci.yaml automatically)
-make lint-fix   # golangci-lint --fix
-make init       # go mod tidy
+make test            # gosec, go fmt, go test (with -race and -cover), go vet
+make lint            # golangci-lint (picks up root .golangci.yaml automatically)
+make lint-fix        # golangci-lint --fix
+make init            # go mod tidy
+make bump-common-lib # update github.com/slackmgr/types to latest
 ```
 
 **IMPORTANT:** Both `make test` and `make lint` MUST pass with zero errors before committing any changes. This applies regardless of whether the errors were introduced by your changes or existed previously.

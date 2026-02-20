@@ -8,14 +8,6 @@ This file provides guidance to Claude Code when working with the `sqs` plugin. S
 - FIFO queue consumption with automatic visibility timeout extension
 - A webhook handler that converts HTTP callbacks into SQS messages
 
-## Build Commands
-
-Standard targets (`make test`, `make lint`, etc.) are documented in the root `CLAUDE.md`. The one sqs-specific target:
-
-```bash
-make bump-common-lib # Update github.com/slackmgr/types to latest
-```
-
 ## Architecture
 
 **Core components:**

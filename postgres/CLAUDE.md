@@ -13,7 +13,6 @@ Standard targets (`make test`, `make lint`, etc.) are documented in the root `CL
 ```bash
 make test-integration  # Run integration tests (requires local PostgreSQL)
 make open-cover-report # View HTML coverage report
-make bump-common-lib   # Update github.com/slackmgr/types to latest
 ```
 
 Integration tests require a running PostgreSQL instance. Start one with:
