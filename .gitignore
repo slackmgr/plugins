@@ -14,9 +14,6 @@ cover.html
 coverage.html
 
 # Go workspace files
-go.work
-go.work.sum
-
 # Vendor directory
 vendor/
 
