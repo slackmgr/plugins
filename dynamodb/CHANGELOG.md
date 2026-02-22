@@ -13,6 +13,16 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-02-22
+
+### Changed
+
+- Updated Go module dependencies
+- CI: replaced shared matrix workflow with a dedicated per-plugin path-filtered workflow (`ci-dynamodb.yml`)
+- CI: refactored Security job to install gosec via `go install` using the host Go toolchain, run from the module directory, use stable Go, and enforce failure on findings; gosec removed from golangci-lint
+- CI: fixed `setup-go` `cache-dependency-path` for subdirectory modules
+- Lint: updated golangci-lint config — disabled `godox`, enabled `sqlclosecheck`, disabled `testpackage`
+
 ## [0.3.0] - 2026-02-20
 
 _Initial version in the slackmgr/plugins monorepo. For prior history see the
@@ -22,5 +32,6 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-dynamodb-plugin` to `github.com/slackmgr/plugins/dynamodb`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.0...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.1...HEAD
+[0.3.1]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.0...dynamodb/v0.3.1
 [0.3.0]: https://github.com/slackmgr/plugins/releases/tag/dynamodb/v0.3.0

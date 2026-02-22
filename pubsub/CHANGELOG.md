@@ -10,6 +10,14 @@ Versions are tagged using the `pubsub/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-02-22
+
+### Changed
+
+- Updated Go module dependencies
+- CI: refactored Security job to install gosec via `go install` using the host Go toolchain, run from the module directory, use stable Go, and enforce failure on findings; gosec removed from golangci-lint
+- CI: fixed `setup-go` `cache-dependency-path` for subdirectory modules
+
 ## [0.1.0] - 2026-02-20
 
 _Initial version in the slackmgr/plugins monorepo. The plugin was previously developed privately; this is its first public release._
@@ -22,5 +30,6 @@ _Initial version in the slackmgr/plugins monorepo. The plugin was previously dev
 - Functional options pattern for all configuration (`WithPublisher*`, `WithSubscriber*`)
 - Dependency injection interfaces for testing (`pubsubClient`, `pubsubPublisher`, `pubsubSubscriber`)
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.0...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.1...HEAD
+[0.1.1]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.0...pubsub/v0.1.1
 [0.1.0]: https://github.com/slackmgr/plugins/releases/tag/pubsub/v0.1.0

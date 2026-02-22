@@ -13,6 +13,16 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-22
+
+### Changed
+
+- Updated Go module dependencies
+- CI: replaced shared matrix workflow with a dedicated per-plugin path-filtered workflow (`ci-sqs.yml`)
+- CI: refactored Security job to install gosec via `go install` using the host Go toolchain, run from the module directory, use stable Go, and enforce failure on findings; gosec removed from golangci-lint
+- CI: fixed `setup-go` `cache-dependency-path` for subdirectory modules
+- Lint: updated golangci-lint config — disabled `godox`, enabled `sqlclosecheck`, disabled `testpackage`
+
 ## [0.2.0] - 2026-02-19
 
 _Initial version in the slackmgr/plugins monorepo. For prior history see the
@@ -23,5 +33,6 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 - Renamed shared types dependency from `github.com/slackmgr/slack-manager-common` to `github.com/slackmgr/types` (v0.3.0); all public API references updated accordingly
 - Module path updated from `github.com/slackmgr/slack-manager-sqs-plugin` to `github.com/slackmgr/plugins/sqs`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.0...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.1...HEAD
+[0.2.1]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.0...sqs/v0.2.1
 [0.2.0]: https://github.com/slackmgr/plugins/releases/tag/sqs/v0.2.0
