@@ -4,19 +4,22 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'postgres/**'
+      - 'postgres/*.go'
+      - 'postgres/go.mod'
+      - 'postgres/go.sum'
       - '.golangci.yaml'
       - '.github/workflows/ci-postgres.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'postgres/**'
+      - 'postgres/*.go'
+      - 'postgres/go.mod'
+      - 'postgres/go.sum'
       - '.golangci.yaml'
       - '.github/workflows/ci-postgres.yml'
   workflow_dispatch:
 
 permissions:
-  security-events: write
   contents: read
 
 concurrency:
@@ -104,10 +107,4 @@ jobs:
 
     - name: Run Gosec Security Scanner
       working-directory: postgres
-      run: gosec -fmt sarif -out results.sarif ./...
-
-    - name: Upload Gosec results
-      if: always()
-      uses: github/codeql-action/upload-sarif@v4.32.3
-      with:
-        sarif_file: postgres/results.sarif
+      run: gosec ./...

@@ -4,19 +4,22 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'dynamodb/**'
+      - 'dynamodb/*.go'
+      - 'dynamodb/go.mod'
+      - 'dynamodb/go.sum'
       - '.golangci.yaml'
       - '.github/workflows/ci-dynamodb.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'dynamodb/**'
+      - 'dynamodb/*.go'
+      - 'dynamodb/go.mod'
+      - 'dynamodb/go.sum'
       - '.golangci.yaml'
       - '.github/workflows/ci-dynamodb.yml'
   workflow_dispatch:
 
 permissions:
-  security-events: write
   contents: read
 
 concurrency:
@@ -104,10 +107,4 @@ jobs:
 
     - name: Run Gosec Security Scanner
       working-directory: dynamodb
-      run: gosec -fmt sarif -out results.sarif ./...
-
-    - name: Upload Gosec results
-      if: always()
-      uses: github/codeql-action/upload-sarif@v4.32.3
-      with:
-        sarif_file: dynamodb/results.sarif
+      run: gosec ./...
