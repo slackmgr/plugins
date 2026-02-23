@@ -87,9 +87,14 @@ jobs:
         for plugin in sqs dynamodb postgres pubsub; do
           govulncheck -C $plugin -format sarif ./... > vuln-sarif/${plugin}.sarif || true
         done
+        jq -s '
+          .[0].runs[0].results = ([.[].runs[0].results] | add // []) |
+          .[0].runs[0].artifacts = ([.[].runs[0].artifacts] | add // []) |
+          .[0]
+        ' vuln-sarif/*.sarif > vuln.sarif
 
     - name: Upload govulncheck results
       if: always()
       uses: github/codeql-action/upload-sarif@v4.32.3
       with:
-        sarif_file: vuln-sarif
+        sarif_file: vuln.sarif
