@@ -56,7 +56,7 @@ profiling/
 profile*.pdf
 
 # Security scan output
-results.sarif
+*.sarif
 
 # AI tools
 .claude/*.local.json
