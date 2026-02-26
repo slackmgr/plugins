@@ -10,6 +10,13 @@ Versions are tagged using the `pubsub/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-02-26
+
+### Changed
+
+- CI: added govulncheck to per-plugin CI and code scanning workflow
+- Updated Go module dependencies (google/pubsub, slackmgr/types v0.4.0)
+
 ## [0.1.1] - 2026-02-22
 
 ### Changed
@@ -30,6 +37,7 @@ _Initial version in the slackmgr/plugins monorepo. The plugin was previously dev
 - Functional options pattern for all configuration (`WithPublisher*`, `WithSubscriber*`)
 - Dependency injection interfaces for testing (`pubsubClient`, `pubsubPublisher`, `pubsubSubscriber`)
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.1...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.2...HEAD
+[0.1.2]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.1...pubsub/v0.1.2
 [0.1.1]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.0...pubsub/v0.1.1
 [0.1.0]: https://github.com/slackmgr/plugins/releases/tag/pubsub/v0.1.0

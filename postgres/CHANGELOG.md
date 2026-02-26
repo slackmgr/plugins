@@ -13,6 +13,13 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-02-26
+
+### Changed
+
+- CI: added govulncheck to per-plugin CI and code scanning workflow
+- Updated Go module dependencies (slackmgr/types v0.4.0)
+
 ## [0.3.4] - 2026-02-22
 
 ### Changed
@@ -32,6 +39,7 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-postgres-plugin` to `github.com/slackmgr/plugins/postgres`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.4...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.5...HEAD
+[0.3.5]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.4...postgres/v0.3.5
 [0.3.4]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.3...postgres/v0.3.4
 [0.3.3]: https://github.com/slackmgr/plugins/releases/tag/postgres/v0.3.3

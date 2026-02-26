@@ -13,6 +13,13 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-02-26
+
+### Changed
+
+- CI: added govulncheck to per-plugin CI and code scanning workflow
+- Updated Go module dependencies (aws-sdk-go-v2, slackmgr/types v0.4.0)
+
 ## [0.3.1] - 2026-02-22
 
 ### Changed
@@ -32,6 +39,7 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-dynamodb-plugin` to `github.com/slackmgr/plugins/dynamodb`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.1...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.2...HEAD
+[0.3.2]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.1...dynamodb/v0.3.2
 [0.3.1]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.0...dynamodb/v0.3.1
 [0.3.0]: https://github.com/slackmgr/plugins/releases/tag/dynamodb/v0.3.0
