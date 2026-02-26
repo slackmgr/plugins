@@ -5,7 +5,7 @@ go 1.25
 require (
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/pashagolub/pgxmock/v4 v4.9.0
-	github.com/slackmgr/types v0.3.1
+	github.com/slackmgr/types v0.4.0
 	github.com/stretchr/testify v1.11.1
 )
 
