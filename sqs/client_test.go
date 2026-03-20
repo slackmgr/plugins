@@ -98,6 +98,30 @@ func TestInit_Success(t *testing.T) {
 	}
 }
 
+func TestInit_WithDisableMessageExtension_NoExtender(t *testing.T) {
+	mockClient := &mockSQSClient{
+		getQueueUrlFunc: func(_ context.Context, _ *sqs.GetQueueUrlInput, _ ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error) {
+			return &sqs.GetQueueUrlOutput{
+				QueueUrl: aws.String("https://sqs.us-east-1.amazonaws.com/123456789/test-queue.fifo"),
+			}, nil
+		},
+	}
+
+	awsCfg := &aws.Config{}
+	client := New(awsCfg, "test-queue.fifo", newMockLogger(), WithSQSClient(mockClient), WithDisableMessageExtension())
+
+	ctx := t.Context()
+
+	_, err := client.Init(ctx)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if client.extender != nil {
+		t.Error("expected extender to be nil when message extension is disabled")
+	}
+}
+
 func TestInit_AlreadyInitialized(t *testing.T) {
 	mockClient := &mockSQSClient{
 		getQueueUrlFunc: func(_ context.Context, _ *sqs.GetQueueUrlInput, _ ...func(*sqs.Options)) (*sqs.GetQueueUrlOutput, error) {

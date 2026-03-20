@@ -105,10 +105,12 @@ func (c *Client) Init(ctx context.Context) (*Client, error) {
 
 	c.queueURL = aws.ToString(resp.QueueUrl)
 
-	c.extender = newMessageExtender(c.opts, c.logger)
+	if !c.opts.disableMessageExtension {
+		c.extender = newMessageExtender(c.opts, c.logger)
 
-	// Start the message extender. This will run until the context is cancelled or the extender channel is closed.
-	go c.extender.run(ctx, c.extenderCh)
+		// Start the message extender. This will run until the context is cancelled or the extender channel is closed.
+		go c.extender.run(ctx, c.extenderCh)
+	}
 
 	c.initialized = true
 
@@ -218,13 +220,15 @@ func (c *Client) Receive(ctx context.Context, sinkCh chan<- *types.FifoQueueItem
 
 func (c *Client) read(ctx context.Context, sinkCh chan<- *types.FifoQueueItem) error {
 	// First check if we are allowed to read more messages, based on the extender's capacity
-	for !c.extender.AllowMoreMessages() {
-		c.logger.Debug("SQS message extender is at capacity, waiting to read more messages")
+	if !c.opts.disableMessageExtension {
+		for !c.extender.AllowMoreMessages() {
+			c.logger.Debug("SQS message extender is at capacity, waiting to read more messages")
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(2 * time.Second):
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(2 * time.Second):
+			}
 		}
 	}
 
@@ -248,21 +252,24 @@ func (c *Client) read(ctx context.Context, sinkCh chan<- *types.FifoQueueItem) e
 		receiptHandle := aws.ToString(m.ReceiptHandle)
 		body := aws.ToString(m.Body)
 
+		extendableMsg := newExtendableMessage(msgID, c.opts.sqsVisibilityTimeoutSeconds, len(body))
+
 		ack := func() { //nolint:contextcheck // ack must complete regardless of caller's context state
 			c.deleteMessage(msgID, receiptHandle)
 		}
 
-		extendVisibilty := func(ctx context.Context) error {
-			return c.changeMessageVisibility(ctx, msgID, receiptHandle)
-		}
-
-		extendableMsg := newExtendableMessage(msgID, c.opts.sqsVisibilityTimeoutSeconds, len(body))
-
 		extendableMsg.SetAckFunc(ack)
-		extendableMsg.SetExtendVisibilityFunc(extendVisibilty)
 
-		if err := trySend(ctx, extendableMsg, c.extenderCh); err != nil {
-			return err
+		if !c.opts.disableMessageExtension {
+			extendVisibilty := func(ctx context.Context) error {
+				return c.changeMessageVisibility(ctx, msgID, receiptHandle)
+			}
+
+			extendableMsg.SetExtendVisibilityFunc(extendVisibilty)
+
+			if err := trySend(ctx, extendableMsg, c.extenderCh); err != nil {
+				return err
+			}
 		}
 
 		queueItem := &types.FifoQueueItem{

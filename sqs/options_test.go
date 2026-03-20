@@ -23,6 +23,7 @@ func TestNewOptions_Defaults(t *testing.T) {
 		{"maxOutstandingMessages", opts.maxOutstandingMessages, 100},
 		{"maxOutstandingBytes", opts.maxOutstandingBytes, int(1e6)},
 		{"sqsClient", opts.sqsClient, nil},
+		{"disableMessageExtension", opts.disableMessageExtension, false},
 	}
 
 	for _, tt := range tests {
@@ -332,6 +333,25 @@ func TestWithMaxOutstandingBytes(t *testing.T) {
 
 	if opts.maxOutstandingBytes != 5000000 {
 		t.Errorf("expected 5000000, got %d", opts.maxOutstandingBytes)
+	}
+}
+
+func TestWithDisableMessageExtension(t *testing.T) {
+	opts := newOptions()
+	WithDisableMessageExtension()(opts)
+
+	if !opts.disableMessageExtension {
+		t.Error("expected disableMessageExtension to be true")
+	}
+}
+
+func TestValidate_WithDisableMessageExtension_StillValidatesOtherFields(t *testing.T) {
+	opts := newOptions()
+	opts.disableMessageExtension = true
+	opts.sqsReceiveWaitTimeSeconds = 1 // invalid
+
+	if err := opts.validate(); err == nil {
+		t.Error("expected error for invalid sqsReceiveWaitTimeSeconds, got nil")
 	}
 }
 

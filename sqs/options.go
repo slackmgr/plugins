@@ -22,6 +22,7 @@ type Options struct {
 	maxOutstandingMessages        int
 	maxOutstandingBytes           int
 	sqsClient                     sqsClient // Optional: injected SQS client for testing
+	disableMessageExtension       bool
 }
 
 func newOptions() *Options {
@@ -126,6 +127,17 @@ func WithSqsAPIMaxRetryBackoffDelay(d time.Duration) Option {
 func WithMaxMessageExtension(d time.Duration) Option {
 	return func(o *Options) {
 		o.maxMessageExtension = d
+	}
+}
+
+// WithDisableMessageExtension disables the background visibility-timeout
+// extension goroutine. When set, received messages will not have their
+// visibility timeout extended automatically; they must be processed within
+// the original visibility timeout or they will become visible again.
+// WithMaxMessageExtension validation is skipped when this option is set.
+func WithDisableMessageExtension() Option {
+	return func(o *Options) {
+		o.disableMessageExtension = true
 	}
 }
 
