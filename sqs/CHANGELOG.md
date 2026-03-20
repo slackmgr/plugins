@@ -13,6 +13,12 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-03-20
+
+### Added
+
+- `WithDisableMessageExtension()` option to skip the background visibility-timeout extension goroutine, for workloads with short, predictable processing times
+
 ## [0.2.2] - 2026-02-26
 
 ### Changed
@@ -40,7 +46,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 - Renamed shared types dependency from `github.com/slackmgr/slack-manager-common` to `github.com/slackmgr/types` (v0.3.0); all public API references updated accordingly
 - Module path updated from `github.com/slackmgr/slack-manager-sqs-plugin` to `github.com/slackmgr/plugins/sqs`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.2...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.3...HEAD
+[0.2.3]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.2...sqs/v0.2.3
 [0.2.2]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.1...sqs/v0.2.2
 [0.2.1]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.0...sqs/v0.2.1
 [0.2.0]: https://github.com/slackmgr/plugins/releases/tag/sqs/v0.2.0
