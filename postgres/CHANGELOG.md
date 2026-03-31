@@ -13,6 +13,18 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-31
+
+### Added
+
+- `WithSSLRootCert`, `WithSSLCert`, `WithSSLKey` options for passing TLS certificate file paths to the PostgreSQL connection
+- Schema migrations table: `Init` now applies versioned migrations automatically using a `schema_migrations` table, protected by a `pg_advisory_xact_lock` for safe concurrent startup
+- `WithSchemaMigrationsTable` option to customise the migrations table name (default: `"schema_migrations"`)
+
+### Removed
+
+- `createStatements()` and `verifyCurrentDatabaseVersion()` replaced by the migrations system
+
 ## [0.3.5] - 2026-02-26
 
 ### Changed
@@ -39,7 +51,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-postgres-plugin` to `github.com/slackmgr/plugins/postgres`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.5...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.4.0...HEAD
+[0.4.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.5...postgres/v0.4.0
 [0.3.5]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.4...postgres/v0.3.5
 [0.3.4]: https://github.com/slackmgr/plugins/compare/postgres/v0.3.3...postgres/v0.3.4
 [0.3.3]: https://github.com/slackmgr/plugins/releases/tag/postgres/v0.3.3
