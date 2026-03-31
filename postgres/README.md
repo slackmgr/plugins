@@ -57,6 +57,12 @@ All options are provided via `With*` constructor functions. Only `WithUser` and 
 | `WithPassword(string)` | `""` | Database password |
 | `WithDatabase(string)` | *(required)* | Database name |
 | `WithSSLMode(SSLMode)` | `SSLModePrefer` | SSL connection mode |
+| `WithSSLRootCert(string)` | `""` | Path to CA certificate file (for server verification) |
+| `WithSSLCert(string)` | `""` | Path to client certificate file (for mutual TLS) |
+| `WithSSLKey(string)` | `""` | Path to client private key file (for mutual TLS) |
+| `WithSSLRootCertPEM(string)` | `""` | PEM-encoded CA certificate string (mutually exclusive with `WithSSLRootCert`) |
+| `WithSSLCertPEM(string)` | `""` | PEM-encoded client certificate string (mutually exclusive with `WithSSLCert`) |
+| `WithSSLKeyPEM(string)` | `""` | PEM-encoded client private key string (mutually exclusive with `WithSSLKey`) |
 | `WithIssuesTable(string)` | `"issues"` | Issues table name |
 | `WithAlertsTable(string)` | `"alerts"` | Alerts table name |
 | `WithMoveMappingsTable(string)` | `"move_mappings"` | Move mappings table name |
@@ -73,7 +79,7 @@ All options are provided via `With*` constructor functions. Only `WithUser` and 
 | `WithPoolMaxConnectionIdleTime(time.Duration)` | pgx default | Max connection idle time |
 | `WithPoolHealthCheckPeriod(time.Duration)` | pgx default | Health check interval |
 
-### SSL Modes
+### SSL/TLS
 
 ```go
 postgres.SSLModeDisable    // No SSL
@@ -82,6 +88,43 @@ postgres.SSLModePrefer     // Try SSL first, then non-SSL (default)
 postgres.SSLModeRequire    // SSL only, no certificate verification
 postgres.SSLModeVerifyCA   // SSL with CA certificate verification
 postgres.SSLModeVerifyFull // SSL with CA and hostname verification
+```
+
+`sslmode` controls whether TLS is used and how strictly the server certificate is verified. Certificate files are additive — they provide the cryptographic material for the negotiated TLS connection.
+
+**CA certificate** (`WithSSLRootCert`) — used to verify the server's certificate against a private CA. Only meaningful with `SSLModeVerifyCA` or `SSLModeVerifyFull`. When omitted, the system trust store is used.
+
+**Client certificate + key** (`WithSSLCert` + `WithSSLKey`) — enables mutual TLS (mTLS). Both must be set together. Works with any SSL mode except `SSLModeDisable`.
+
+Example — full mutual TLS with a private CA using certificate files:
+
+```go
+client := postgres.New(
+    postgres.WithUser("appuser"),
+    postgres.WithDatabase("appdb"),
+    postgres.WithSSLMode(postgres.SSLModeVerifyFull),
+    postgres.WithSSLRootCert("/etc/ssl/certs/ca.crt"),
+    postgres.WithSSLCert("/etc/ssl/certs/client.crt"),
+    postgres.WithSSLKey("/etc/ssl/private/client.key"),
+)
+```
+
+**PEM string options** — use these when certificates are available as strings rather than files (e.g. from Kubernetes secrets or environment variables). The `*PEM` and file-path variants for the same cert are mutually exclusive.
+
+```go
+// Values read from a Kubernetes secret or environment variables
+caCert   := os.Getenv("POSTGRES_CA_CERT")
+clientCert := os.Getenv("POSTGRES_CLIENT_CERT")
+clientKey  := os.Getenv("POSTGRES_CLIENT_KEY")
+
+client := postgres.New(
+    postgres.WithUser("appuser"),
+    postgres.WithDatabase("appdb"),
+    postgres.WithSSLMode(postgres.SSLModeVerifyFull),
+    postgres.WithSSLRootCertPEM(caCert),
+    postgres.WithSSLCertPEM(clientCert),
+    postgres.WithSSLKeyPEM(clientKey),
+)
 ```
 
 ### Custom Table Names

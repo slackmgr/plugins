@@ -44,6 +44,9 @@ type options struct {
 	password                        string
 	database                        string
 	sslMode                         SSLMode
+	sslRootCert                     string
+	sslCert                         string
+	sslKey                          string
 	poolMaxConnections              *int32
 	poolMinConnections              *int32
 	poolMinIdleConnections          *int32
@@ -99,6 +102,25 @@ func WithDatabase(database string) Option {
 
 func WithSSLMode(mode SSLMode) Option {
 	return func(o *options) { o.sslMode = mode }
+}
+
+// WithSSLRootCert sets the path to the CA certificate file used to verify the
+// server's certificate. Useful when using SSLModeVerifyCA or SSLModeVerifyFull
+// against a private CA that is not in the system trust store.
+func WithSSLRootCert(path string) Option {
+	return func(o *options) { o.sslRootCert = path }
+}
+
+// WithSSLCert sets the path to the client certificate file for mutual TLS
+// authentication. Must be used together with WithSSLKey.
+func WithSSLCert(path string) Option {
+	return func(o *options) { o.sslCert = path }
+}
+
+// WithSSLKey sets the path to the client private key file for mutual TLS
+// authentication. Must be used together with WithSSLCert.
+func WithSSLKey(path string) Option {
+	return func(o *options) { o.sslKey = path }
 }
 
 func WithPoolMaxConnections(n int32) Option {
@@ -193,6 +215,10 @@ func (o *options) validate() error {
 		return fmt.Errorf("invalid SSL mode: %s", o.sslMode)
 	}
 
+	if (o.sslCert == "") != (o.sslKey == "") {
+		return errors.New("sslcert and sslkey must both be set or both be empty")
+	}
+
 	if err := validateTableName(o.issuesTable); err != nil {
 		return fmt.Errorf("invalid issues table name: %w", err)
 	}
@@ -251,7 +277,21 @@ func (o *options) connectionString() string {
 		user += ":" + url.QueryEscape(o.password)
 	}
 
-	return fmt.Sprintf("postgres://%s@%s/%s?sslmode=%s", user, host, o.database, o.sslMode)
+	dsn := fmt.Sprintf("postgres://%s@%s/%s?sslmode=%s", user, host, o.database, o.sslMode)
+
+	if o.sslRootCert != "" {
+		dsn += "&sslrootcert=" + url.QueryEscape(o.sslRootCert)
+	}
+
+	if o.sslCert != "" {
+		dsn += "&sslcert=" + url.QueryEscape(o.sslCert)
+	}
+
+	if o.sslKey != "" {
+		dsn += "&sslkey=" + url.QueryEscape(o.sslKey)
+	}
+
+	return dsn
 }
 
 func (o *options) createStatements() []string {

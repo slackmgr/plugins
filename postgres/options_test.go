@@ -201,6 +201,54 @@ func TestValidate(t *testing.T) {
 				postgres.WithTTLCleanupDisabled(),
 			},
 		},
+		{
+			name: "valid with CA cert",
+			opts: []postgres.Option{
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithSSLMode(postgres.SSLModeVerifyCA),
+				postgres.WithSSLRootCert("/etc/ssl/certs/ca.crt"),
+			},
+		},
+		{
+			name: "valid with client cert and key",
+			opts: []postgres.Option{
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithSSLMode(postgres.SSLModeRequire),
+				postgres.WithSSLCert("/etc/ssl/certs/client.crt"),
+				postgres.WithSSLKey("/etc/ssl/private/client.key"),
+			},
+		},
+		{
+			name: "valid with all three cert options",
+			opts: []postgres.Option{
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithSSLMode(postgres.SSLModeVerifyFull),
+				postgres.WithSSLRootCert("/etc/ssl/certs/ca.crt"),
+				postgres.WithSSLCert("/etc/ssl/certs/client.crt"),
+				postgres.WithSSLKey("/etc/ssl/private/client.key"),
+			},
+		},
+		{
+			name: "returns error when only sslcert is set",
+			opts: []postgres.Option{
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithSSLCert("/etc/ssl/certs/client.crt"),
+			},
+			wantErr: "sslcert and sslkey must both be set or both be empty",
+		},
+		{
+			name: "returns error when only sslkey is set",
+			opts: []postgres.Option{
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithSSLKey("/etc/ssl/private/client.key"),
+			},
+			wantErr: "sslcert and sslkey must both be set or both be empty",
+		},
 	}
 
 	for _, tt := range tests {
@@ -351,6 +399,43 @@ func TestConnectionString(t *testing.T) {
 				postgres.WithSSLMode(postgres.SSLModeDisable),
 			},
 			want: "postgres://testuser:p%40ss%3Aword%2Fwith%26special%3Dchars@localhost:5432/testdb?sslmode=disable",
+		},
+		{
+			name: "connection with CA cert",
+			opts: []postgres.Option{
+				postgres.WithHost("localhost"),
+				postgres.WithPort(5432),
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithSSLMode(postgres.SSLModeVerifyCA),
+				postgres.WithSSLRootCert("/etc/ssl/certs/ca.crt"),
+			},
+			want: "postgres://testuser@localhost:5432/testdb?sslmode=verify-ca&sslrootcert=%2Fetc%2Fssl%2Fcerts%2Fca.crt",
+		},
+		{
+			name: "connection with all TLS options",
+			opts: []postgres.Option{
+				postgres.WithHost("secure.db.com"),
+				postgres.WithPort(5432),
+				postgres.WithUser("appuser"),
+				postgres.WithDatabase("appdb"),
+				postgres.WithSSLMode(postgres.SSLModeVerifyFull),
+				postgres.WithSSLRootCert("/etc/ssl/certs/ca.crt"),
+				postgres.WithSSLCert("/etc/ssl/certs/client.crt"),
+				postgres.WithSSLKey("/etc/ssl/private/client.key"),
+			},
+			want: "postgres://appuser@secure.db.com:5432/appdb?sslmode=verify-full&sslrootcert=%2Fetc%2Fssl%2Fcerts%2Fca.crt&sslcert=%2Fetc%2Fssl%2Fcerts%2Fclient.crt&sslkey=%2Fetc%2Fssl%2Fprivate%2Fclient.key",
+		},
+		{
+			name: "connection string does not include empty cert params",
+			opts: []postgres.Option{
+				postgres.WithHost("localhost"),
+				postgres.WithPort(5432),
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithSSLMode(postgres.SSLModeRequire),
+			},
+			want: "postgres://testuser@localhost:5432/testdb?sslmode=require",
 		},
 	}
 
