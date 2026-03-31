@@ -128,6 +128,7 @@ Follows [Semantic Versioning](https://semver.org/) per plugin:
 - **NEVER** create a tag without updating the plugin's `CHANGELOG.md` first
 - **ALWAYS** review all commits since the last tag for that plugin — do not rely on memory or summaries
 - Tags in this repo are plugin-scoped; a `sqs/vX.Y.Z` tag has no meaning for other plugins
+- **`scripts/` is excluded from tagging and releases** — scripts are internal tools, not published modules; no tags, changelogs, or GitHub releases are created for them
 
 ## Adding a New Plugin
 
