@@ -227,6 +227,16 @@ func expectMigrations(mock pgxmock.PgxPoolIface) {
 	// INSERT INTO schema_migrations — passes migration version as argument
 	mock.ExpectExec("INSERT INTO").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("INSERT", 1))
 	mock.ExpectCommit()
+	// Transaction for migration v2
+	mock.ExpectBegin()
+	mock.ExpectExec("pg_advisory_xact_lock").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("", 0))
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(pgxmock.AnyArg()).WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(false))
+	// 3 CREATE UNIQUE INDEX statements
+	for range 3 {
+		mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
+	}
+	mock.ExpectExec("INSERT INTO").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mock.ExpectCommit()
 }
 
 func TestInit_TTLCleanupStarted(t *testing.T) {
@@ -310,11 +320,24 @@ func TestSaveAlert_Validation(t *testing.T) {
 		assert.Contains(t, err.Error(), "alert cannot be nil")
 	})
 
+	t.Run("empty SlackChannelID returns error", func(t *testing.T) {
+		t.Parallel()
+
+		client, _ := newClientWithMock(t)
+		alert := types.NewInfoAlert() // SlackChannelID is ""
+
+		err := client.SaveAlert(context.Background(), alert)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "alert SlackChannelID cannot be empty")
+	})
+
 	t.Run("successful save without TTL", func(t *testing.T) {
 		t.Parallel()
 
 		client, mock := newClientWithMock(t)
 		alert := types.NewInfoAlert()
+		alert.SlackChannelID = "C123"
 
 		mock.ExpectExec("INSERT INTO alerts").
 			WithArgs(alert.UniqueID(), postgres.AlertModelVersion, pgxmock.AnyArg(), pgxmock.AnyArg()).
@@ -331,6 +354,7 @@ func TestSaveAlert_Validation(t *testing.T) {
 
 		client, mock := newClientWithMockAndTTL(t)
 		alert := types.NewInfoAlert()
+		alert.SlackChannelID = "C123"
 
 		mock.ExpectExec("INSERT INTO alerts").
 			WithArgs(alert.UniqueID(), postgres.AlertModelVersion, pgxmock.AnyArg(), pgxmock.AnyArg()).
@@ -347,6 +371,7 @@ func TestSaveAlert_Validation(t *testing.T) {
 
 		client, mock := newClientWithMock(t)
 		alert := types.NewInfoAlert()
+		alert.SlackChannelID = "C123"
 
 		mock.ExpectExec("INSERT INTO alerts").
 			WithArgs(alert.UniqueID(), postgres.AlertModelVersion, pgxmock.AnyArg(), pgxmock.AnyArg()).
@@ -643,6 +668,18 @@ func TestMoveIssue_Validation(t *testing.T) {
 		assert.Contains(t, err.Error(), "issue cannot be nil")
 	})
 
+	t.Run("empty source channel ID returns error", func(t *testing.T) {
+		t.Parallel()
+
+		client, _ := newClientWithMock(t)
+		issue := &mockIssue{channelID: "C123", uniqueID: "uid1", correlationID: "corr1"}
+
+		err := client.MoveIssue(context.Background(), issue, "", "C123")
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "source channel ID cannot be empty")
+	})
+
 	t.Run("empty target channel ID returns error", func(t *testing.T) {
 		t.Parallel()
 
@@ -653,6 +690,18 @@ func TestMoveIssue_Validation(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "target channel ID cannot be empty")
+	})
+
+	t.Run("source and target channel IDs equal returns error", func(t *testing.T) {
+		t.Parallel()
+
+		client, _ := newClientWithMock(t)
+		issue := &mockIssue{channelID: "C123", uniqueID: "uid1", correlationID: "corr1"}
+
+		err := client.MoveIssue(context.Background(), issue, "C123", "C123")
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "source and target channel IDs cannot be the same")
 	})
 
 	t.Run("channel ID mismatch returns error", func(t *testing.T) {
@@ -856,7 +905,7 @@ func TestFindActiveChannels(t *testing.T) {
 		channels, err := client.FindActiveChannels(context.Background())
 
 		require.NoError(t, err)
-		assert.Empty(t, channels)
+		assert.Equal(t, []string{}, channels)
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
 

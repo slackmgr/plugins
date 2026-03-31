@@ -176,6 +176,10 @@ func (c *Client) SaveAlert(ctx context.Context, alert *types.Alert) error {
 		return errors.New("alert cannot be nil")
 	}
 
+	if alert.SlackChannelID == "" {
+		return errors.New("alert SlackChannelID cannot be empty")
+	}
+
 	body, err := json.Marshal(alert)
 	if err != nil {
 		return fmt.Errorf("failed to marshal alert: %w", err)
@@ -272,7 +276,7 @@ func (c *Client) SaveIssues(ctx context.Context, issues ...types.Issue) error {
 	return nil
 }
 
-func (c *Client) MoveIssue(ctx context.Context, issue types.Issue, _, targetChannelID string) error {
+func (c *Client) MoveIssue(ctx context.Context, issue types.Issue, sourceChannelID, targetChannelID string) error {
 	if c.conn == nil {
 		return errNotConnected
 	}
@@ -281,8 +285,16 @@ func (c *Client) MoveIssue(ctx context.Context, issue types.Issue, _, targetChan
 		return errors.New("issue cannot be nil")
 	}
 
+	if sourceChannelID == "" {
+		return errors.New("source channel ID cannot be empty")
+	}
+
 	if targetChannelID == "" {
 		return errors.New("target channel ID cannot be empty")
+	}
+
+	if sourceChannelID == targetChannelID {
+		return errors.New("source and target channel IDs cannot be the same")
 	}
 
 	if issue.ChannelID() != targetChannelID {
@@ -380,7 +392,7 @@ func (c *Client) FindActiveChannels(ctx context.Context) ([]string, error) {
 
 	defer rows.Close()
 
-	var channels []string
+	channels := []string{}
 
 	for rows.Next() {
 		var channelID string

@@ -331,6 +331,17 @@ func (o *options) migrations() []migration {
 				fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, channel_id text NOT NULL, created TIMESTAMP WITH TIME ZONE NOT NULL, last_processed TIMESTAMP WITH TIME ZONE NOT NULL);`, o.channelProcessingStateTable),
 			},
 		},
+		{
+			version: 2,
+			stmts: []string{
+				// Enforce at most one open issue per (channel_id, correlation_id)
+				fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s_open_channel_correlation_uniq ON %s (channel_id, correlation_id) WHERE is_open = true;`, o.issuesTable, o.issuesTable),
+				// Enforce at most one issue per (channel_id, slack_post_id), NULLs excluded
+				fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s_channel_slack_post_uniq ON %s (channel_id, slack_post_id) WHERE slack_post_id IS NOT NULL;`, o.issuesTable, o.issuesTable),
+				// Enforce at most one move mapping per (channel_id, correlation_id)
+				fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s_channel_correlation_uniq ON %s (channel_id, correlation_id);`, o.moveMappingsTable, o.moveMappingsTable),
+			},
+		},
 	}
 }
 
