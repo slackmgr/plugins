@@ -118,58 +118,17 @@ func (c *Client) Close(_ context.Context) error {
 	return nil
 }
 
-func (c *Client) Init(ctx context.Context, skipSchemaValidation bool) error {
+// migrationLockKey is a stable advisory lock ID used to serialise concurrent
+// Init() calls against the same database.
+const migrationLockKey = int64(5843298)
+
+func (c *Client) Init(ctx context.Context, _ bool) error {
 	if c.conn == nil {
 		return errNotConnected
 	}
 
-	tx, err := c.conn.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin init transaction: %w", err)
-	}
-
-	defer func() { _ = tx.Rollback(ctx) }() // No-op if committed
-
-	for _, sql := range c.opts.createStatements() {
-		if _, err := tx.Exec(ctx, sql); err != nil {
-			return fmt.Errorf("failed to execute create statement: %w", err)
-		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit init transaction: %w", err)
-	}
-
-	if !skipSchemaValidation {
-		query := "SELECT table_name, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'public' ORDER BY ordinal_position"
-
-		rows, err := c.conn.Query(ctx, query)
-		if err != nil {
-			return fmt.Errorf("failed to query information schema: %w", err)
-		}
-
-		defer rows.Close()
-
-		infoRows := map[string]*dbRow{}
-
-		for rows.Next() {
-			var table, column string
-			infoRow := &dbRow{}
-
-			if err := rows.Scan(&table, &column, &infoRow.DataType, &infoRow.IsNullable); err != nil {
-				return fmt.Errorf("failed to scan row from information schema: %w", err)
-			}
-
-			infoRows[table+"."+column] = infoRow
-		}
-
-		if err := rows.Err(); err != nil {
-			return fmt.Errorf("error iterating over rows from information schema: %w", err)
-		}
-
-		if err := c.opts.verifyCurrentDatabaseVersion(infoRows); err != nil {
-			return fmt.Errorf("failed to verify current database version: %w", err)
-		}
+	if err := c.runMigrations(ctx); err != nil {
+		return err
 	}
 
 	if c.cancelTTL == nil && c.opts.ttlCleanupInterval != nil {
@@ -651,6 +610,76 @@ func (c *Client) getIssueInsertSQL(issue types.Issue) (string, []any, error) {
 	args := []any{param1, param2, param3, param4, param5, param6, param7, param8}
 
 	return statement, args, nil
+}
+
+func (c *Client) runMigrations(ctx context.Context) error {
+	// Bootstrap: create the migrations tracking table. Safe to run on every
+	// startup — it is a no-op if the table already exists.
+	_, err := c.conn.Exec(ctx, fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			version    INTEGER                  PRIMARY KEY,
+			applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+		)`, c.opts.schemaMigrationsTable))
+	if err != nil {
+		return fmt.Errorf("failed to create migrations table: %w", err)
+	}
+
+	for _, m := range c.opts.migrations() {
+		if err := c.applyMigration(ctx, m); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) applyMigration(ctx context.Context, m migration) error {
+	tx, err := c.conn.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin migration %d: %w", m.version, err)
+	}
+
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Advisory lock serialises concurrent Init() calls within the same database.
+	// The lock is automatically released when the transaction ends.
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLockKey); err != nil {
+		return fmt.Errorf("failed to acquire migration lock for version %d: %w", m.version, err)
+	}
+
+	// Re-check under lock — another instance may have applied this migration
+	// while we were waiting.
+	var applied bool
+	if err := tx.QueryRow(ctx,
+		fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE version = $1)", c.opts.schemaMigrationsTable),
+		m.version,
+	).Scan(&applied); err != nil {
+		return fmt.Errorf("failed to check migration %d status: %w", m.version, err)
+	}
+
+	if applied {
+		// Commit to release the advisory lock; Rollback in defer is then a no-op.
+		return tx.Commit(ctx)
+	}
+
+	for _, stmt := range m.stmts {
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("failed to execute migration %d: %w", m.version, err)
+		}
+	}
+
+	if _, err := tx.Exec(ctx,
+		fmt.Sprintf("INSERT INTO %s (version) VALUES ($1)", c.opts.schemaMigrationsTable),
+		m.version,
+	); err != nil {
+		return fmt.Errorf("failed to record migration %d: %w", m.version, err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit migration %d: %w", m.version, err)
+	}
+
+	return nil
 }
 
 func (c *Client) runTTLCleanup(ctx context.Context) {

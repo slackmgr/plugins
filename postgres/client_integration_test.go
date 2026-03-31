@@ -28,6 +28,7 @@ func TestMain(m *testing.M) {
 		postgres.WithAlertsTable("__alerts_integration_test"),
 		postgres.WithMoveMappingsTable("__move_mappings_integration_test"),
 		postgres.WithChannelProcessingStateTable("__channel_processing_state_integration_test"),
+		postgres.WithSchemaMigrationsTable("__schema_migrations_integration_test"),
 		postgres.WithTTLCleanupDisabled(),
 	)
 

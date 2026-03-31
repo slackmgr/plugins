@@ -43,7 +43,7 @@ if err := client.Init(ctx, false); err != nil {
 }
 ```
 
-`Init` creates the required tables if they do not exist, validates the schema, and starts the background TTL cleanup goroutine. It is idempotent — calling it multiple times on the same `Client` is safe. Pass `skipSchemaValidation: true` to skip the schema validation step.
+`Init` runs any pending schema migrations, then starts the background TTL cleanup goroutine. It is idempotent — calling it multiple times on the same `Client` is safe.
 
 ## Configuration
 
@@ -60,13 +60,11 @@ All options are provided via `With*` constructor functions. Only `WithUser` and 
 | `WithSSLRootCert(string)` | `""` | Path to CA certificate file (for server verification) |
 | `WithSSLCert(string)` | `""` | Path to client certificate file (for mutual TLS) |
 | `WithSSLKey(string)` | `""` | Path to client private key file (for mutual TLS) |
-| `WithSSLRootCertPEM(string)` | `""` | PEM-encoded CA certificate string (mutually exclusive with `WithSSLRootCert`) |
-| `WithSSLCertPEM(string)` | `""` | PEM-encoded client certificate string (mutually exclusive with `WithSSLCert`) |
-| `WithSSLKeyPEM(string)` | `""` | PEM-encoded client private key string (mutually exclusive with `WithSSLKey`) |
 | `WithIssuesTable(string)` | `"issues"` | Issues table name |
 | `WithAlertsTable(string)` | `"alerts"` | Alerts table name |
 | `WithMoveMappingsTable(string)` | `"move_mappings"` | Move mappings table name |
 | `WithChannelProcessingStateTable(string)` | `"channel_processing_state"` | Channel processing state table name |
+| `WithSchemaMigrationsTable(string)` | `"schema_migrations"` | Migration tracking table name |
 | `WithAlertsTimeToLive(time.Duration)` | `30 days` | TTL applied to alert records. Must be greater than zero. |
 | `WithIssuesTimeToLive(time.Duration)` | `180 days` | TTL applied to closed issue records. Open issues never expire. Must be greater than zero. |
 | `WithTTLCleanupInterval(time.Duration)` | `1h` | How often the background goroutine physically deletes expired rows. Must be greater than zero. |
@@ -109,24 +107,6 @@ client := postgres.New(
 )
 ```
 
-**PEM string options** — use these when certificates are available as strings rather than files (e.g. from Kubernetes secrets or environment variables). The `*PEM` and file-path variants for the same cert are mutually exclusive.
-
-```go
-// Values read from a Kubernetes secret or environment variables
-caCert   := os.Getenv("POSTGRES_CA_CERT")
-clientCert := os.Getenv("POSTGRES_CLIENT_CERT")
-clientKey  := os.Getenv("POSTGRES_CLIENT_KEY")
-
-client := postgres.New(
-    postgres.WithUser("appuser"),
-    postgres.WithDatabase("appdb"),
-    postgres.WithSSLMode(postgres.SSLModeVerifyFull),
-    postgres.WithSSLRootCertPEM(caCert),
-    postgres.WithSSLCertPEM(clientCert),
-    postgres.WithSSLKeyPEM(clientKey),
-)
-```
-
 ### Custom Table Names
 
 Custom table names are useful for multi-tenant setups or running integration tests alongside production data:
@@ -164,14 +144,27 @@ client := postgres.New(
 
 ## Database Schema
 
-Four tables are created by `Init`:
+`Init` manages schema creation and evolution automatically using a migrations table. On startup it runs any migrations that have not yet been applied and records them in a `schema_migrations` table. Migrations are applied atomically under a PostgreSQL advisory lock, so it is safe to call `Init` concurrently from multiple instances.
+
+Five tables are created on first `Init`:
 
 - **`issues`** — Slack issues with correlation IDs and open/closed state
 - **`alerts`** — Alert records
 - **`move_mappings`** — Issue move tracking between channels
 - **`channel_processing_state`** — Per-channel processing timestamps
+- **`schema_migrations`** — Migration tracking (version + applied timestamp)
 
-All tables include a `version` column for schema evolution and an `attrs` JSONB column for flexible storage. The `issues` and `alerts` tables additionally include an `expires_at` column used for TTL.
+All data tables include a `version` column for data-format versioning and an `attrs` JSONB column for flexible storage. The `issues` and `alerts` tables additionally include an `expires_at` column used for TTL.
+
+Use `WithSchemaMigrationsTable` to customise the migrations table name (useful when running multiple instances in the same database):
+
+```go
+client := postgres.New(
+    postgres.WithUser("myuser"),
+    postgres.WithDatabase("mydb"),
+    postgres.WithSchemaMigrationsTable("myapp_schema_migrations"),
+)
+```
 
 ## License
 

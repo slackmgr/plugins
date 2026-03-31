@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -58,6 +57,7 @@ type options struct {
 	alertsTable                     string
 	moveMappingsTable               string
 	channelProcessingStateTable     string
+	schemaMigrationsTable           string
 	alertsTimeToLive                time.Duration
 	issuesTimeToLive                time.Duration
 	ttlCleanupInterval              *time.Duration
@@ -74,6 +74,7 @@ func newOptions() *options {
 		alertsTable:                 "alerts",
 		moveMappingsTable:           "move_mappings",
 		channelProcessingStateTable: "channel_processing_state",
+		schemaMigrationsTable:       "schema_migrations",
 		alertsTimeToLive:            30 * 24 * time.Hour,
 		issuesTimeToLive:            180 * 24 * time.Hour,
 		ttlCleanupInterval:          &defaultCleanupInterval,
@@ -167,6 +168,12 @@ func WithChannelProcessingStateTable(name string) Option {
 	return func(o *options) { o.channelProcessingStateTable = name }
 }
 
+// WithSchemaMigrationsTable sets the name of the table used to track applied
+// schema migrations. Defaults to "schema_migrations".
+func WithSchemaMigrationsTable(name string) Option {
+	return func(o *options) { o.schemaMigrationsTable = name }
+}
+
 // WithAlertsTimeToLive sets the TTL applied to alert records. The default is
 // 30 days. The duration must be greater than zero.
 func WithAlertsTimeToLive(d time.Duration) Option {
@@ -193,9 +200,11 @@ func WithTTLCleanupDisabled() Option {
 	return func(o *options) { o.ttlCleanupInterval = nil }
 }
 
-type dbRow struct {
-	DataType   string
-	IsNullable string
+// migration holds a versioned set of SQL statements that are applied once and
+// recorded in the schema_migrations table.
+type migration struct {
+	version int
+	stmts   []string
 }
 
 func (o *options) validate() error {
@@ -233,6 +242,10 @@ func (o *options) validate() error {
 
 	if err := validateTableName(o.channelProcessingStateTable); err != nil {
 		return fmt.Errorf("invalid channel processing state table name: %w", err)
+	}
+
+	if err := validateTableName(o.schemaMigrationsTable); err != nil {
+		return fmt.Errorf("invalid schema migrations table name: %w", err)
 	}
 
 	if o.alertsTimeToLive <= 0 {
@@ -294,22 +307,30 @@ func (o *options) connectionString() string {
 	return dsn
 }
 
-func (o *options) createStatements() []string {
-	return []string{
-		// Issues table and indexes
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, channel_id text NOT NULL, correlation_id text NOT NULL, is_open boolean NOT NULL, slack_post_id text NULL, attrs JSONB NOT NULL, expires_at TIMESTAMP WITH TIME ZONE NULL);`, o.issuesTable),
-		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_channel_correlation_idx ON %s (channel_id, correlation_id);`, o.issuesTable, o.issuesTable),
-		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_channel_slack_post_idx ON %s (channel_id, slack_post_id);`, o.issuesTable, o.issuesTable),
-		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_is_open_idx ON %s (is_open) WHERE is_open = true;`, o.issuesTable, o.issuesTable),
-		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_expires_at_idx ON %s (expires_at) WHERE expires_at IS NOT NULL;`, o.issuesTable, o.issuesTable),
-		// Alerts table and index
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, attrs JSONB NOT NULL, expires_at TIMESTAMP WITH TIME ZONE NULL);`, o.alertsTable),
-		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_expires_at_idx ON %s (expires_at) WHERE expires_at IS NOT NULL;`, o.alertsTable, o.alertsTable),
-		// Move mappings table and indexes
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, channel_id text NOT NULL, correlation_id text NOT NULL, attrs JSONB NOT NULL);`, o.moveMappingsTable),
-		fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_channel_correlation_idx ON %s (channel_id, correlation_id);`, o.moveMappingsTable, o.moveMappingsTable),
-		// Channel processing state table
-		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, channel_id text NOT NULL, created TIMESTAMP WITH TIME ZONE NOT NULL, last_processed TIMESTAMP WITH TIME ZONE NOT NULL);`, o.channelProcessingStateTable),
+// migrations returns the ordered list of schema migrations. Each migration is
+// applied exactly once and recorded in the schema_migrations table. To add a
+// new migration, append an entry with the next version number.
+func (o *options) migrations() []migration {
+	return []migration{
+		{
+			version: 1,
+			stmts: []string{
+				// Issues table and indexes
+				fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, channel_id text NOT NULL, correlation_id text NOT NULL, is_open boolean NOT NULL, slack_post_id text NULL, attrs JSONB NOT NULL, expires_at TIMESTAMP WITH TIME ZONE NULL);`, o.issuesTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_channel_correlation_idx ON %s (channel_id, correlation_id);`, o.issuesTable, o.issuesTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_channel_slack_post_idx ON %s (channel_id, slack_post_id);`, o.issuesTable, o.issuesTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_is_open_idx ON %s (is_open) WHERE is_open = true;`, o.issuesTable, o.issuesTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_expires_at_idx ON %s (expires_at) WHERE expires_at IS NOT NULL;`, o.issuesTable, o.issuesTable),
+				// Alerts table and index
+				fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, attrs JSONB NOT NULL, expires_at TIMESTAMP WITH TIME ZONE NULL);`, o.alertsTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_expires_at_idx ON %s (expires_at) WHERE expires_at IS NOT NULL;`, o.alertsTable, o.alertsTable),
+				// Move mappings table and indexes
+				fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, channel_id text NOT NULL, correlation_id text NOT NULL, attrs JSONB NOT NULL);`, o.moveMappingsTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_channel_correlation_idx ON %s (channel_id, correlation_id);`, o.moveMappingsTable, o.moveMappingsTable),
+				// Channel processing state table
+				fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id text PRIMARY KEY, version SMALLINT NOT NULL, channel_id text NOT NULL, created TIMESTAMP WITH TIME ZONE NOT NULL, last_processed TIMESTAMP WITH TIME ZONE NOT NULL);`, o.channelProcessingStateTable),
+			},
+		},
 	}
 }
 
@@ -319,49 +340,6 @@ func (o *options) dropStatements() []string {
 		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.alertsTable),
 		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.moveMappingsTable),
 		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.channelProcessingStateTable),
+		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.schemaMigrationsTable),
 	}
-}
-
-func (o *options) verifyCurrentDatabaseVersion(actualRows map[string]*dbRow) error {
-	expectedRows := map[string]*dbRow{
-		o.issuesTable + ".id":                             {DataType: "text", IsNullable: "NO"},
-		o.issuesTable + ".version":                        {DataType: "smallint", IsNullable: "NO"},
-		o.issuesTable + ".channel_id":                     {DataType: "text", IsNullable: "NO"},
-		o.issuesTable + ".correlation_id":                 {DataType: "text", IsNullable: "NO"},
-		o.issuesTable + ".is_open":                        {DataType: "boolean", IsNullable: "NO"},
-		o.issuesTable + ".slack_post_id":                  {DataType: "text", IsNullable: "YES"},
-		o.issuesTable + ".attrs":                          {DataType: "jsonb", IsNullable: "NO"},
-		o.issuesTable + ".expires_at":                     {DataType: "timestamp with time zone", IsNullable: "YES"},
-		o.alertsTable + ".id":                             {DataType: "text", IsNullable: "NO"},
-		o.alertsTable + ".version":                        {DataType: "smallint", IsNullable: "NO"},
-		o.alertsTable + ".attrs":                          {DataType: "jsonb", IsNullable: "NO"},
-		o.alertsTable + ".expires_at":                     {DataType: "timestamp with time zone", IsNullable: "YES"},
-		o.moveMappingsTable + ".id":                       {DataType: "text", IsNullable: "NO"},
-		o.moveMappingsTable + ".version":                  {DataType: "smallint", IsNullable: "NO"},
-		o.moveMappingsTable + ".channel_id":               {DataType: "text", IsNullable: "NO"},
-		o.moveMappingsTable + ".correlation_id":           {DataType: "text", IsNullable: "NO"},
-		o.moveMappingsTable + ".attrs":                    {DataType: "jsonb", IsNullable: "NO"},
-		o.channelProcessingStateTable + ".id":             {DataType: "text", IsNullable: "NO"},
-		o.channelProcessingStateTable + ".version":        {DataType: "smallint", IsNullable: "NO"},
-		o.channelProcessingStateTable + ".channel_id":     {DataType: "text", IsNullable: "NO"},
-		o.channelProcessingStateTable + ".created":        {DataType: "timestamp with time zone", IsNullable: "NO"},
-		o.channelProcessingStateTable + ".last_processed": {DataType: "timestamp with time zone", IsNullable: "NO"},
-	}
-
-	for id, expectedRow := range expectedRows {
-		actual, ok := actualRows[id]
-		if !ok {
-			return fmt.Errorf("expected row '%s' not found in current database schema", id)
-		}
-
-		if !strings.EqualFold(actual.DataType, expectedRow.DataType) {
-			return fmt.Errorf("data type mismatch for '%s': expected %s, got %s", id, expectedRow.DataType, actual.DataType)
-		}
-
-		if !strings.EqualFold(actual.IsNullable, expectedRow.IsNullable) {
-			return fmt.Errorf("nullability mismatch for '%s': expected %s, got %s", id, expectedRow.IsNullable, actual.IsNullable)
-		}
-	}
-
-	return nil
 }

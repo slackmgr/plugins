@@ -208,6 +208,27 @@ func TestInit_NotConnected(t *testing.T) {
 	assert.Contains(t, err.Error(), "not connected")
 }
 
+// expectMigrations sets up mock expectations for a successful Init() call.
+// Init creates the migrations table, then runs all pending migrations inside a
+// transaction protected by a pg_advisory_xact_lock.
+func expectMigrations(mock pgxmock.PgxPoolIface) {
+	// CREATE TABLE IF NOT EXISTS schema_migrations
+	mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
+	// Transaction for migration v1
+	mock.ExpectBegin()
+	// Advisory lock — passes migrationLockKey as argument
+	mock.ExpectExec("pg_advisory_xact_lock").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("", 0))
+	// SELECT EXISTS — passes migration version as argument
+	mock.ExpectQuery("SELECT EXISTS").WithArgs(pgxmock.AnyArg()).WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(false))
+	// 10 CREATE TABLE/INDEX statements
+	for range 10 {
+		mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
+	}
+	// INSERT INTO schema_migrations — passes migration version as argument
+	mock.ExpectExec("INSERT INTO").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mock.ExpectCommit()
+}
+
 func TestInit_TTLCleanupStarted(t *testing.T) {
 	t.Parallel()
 
@@ -224,15 +245,9 @@ func TestInit_TTLCleanupStarted(t *testing.T) {
 
 		client, mock := newClientWithMockAndTTL(t)
 
-		mock.ExpectBegin()
+		expectMigrations(mock)
 
-		for range 10 { // 10 create statements
-			mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
-		}
-
-		mock.ExpectCommit()
-
-		_ = client.Init(context.Background(), true) // skip schema validation for simplicity
+		_ = client.Init(context.Background(), false)
 
 		assert.True(t, client.HasActiveTTLCleanup())
 
@@ -256,15 +271,9 @@ func TestInit_TTLCleanupStarted(t *testing.T) {
 		)
 		client.SetPool(mock)
 
-		mock.ExpectBegin()
+		expectMigrations(mock)
 
-		for range 10 {
-			mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
-		}
-
-		mock.ExpectCommit()
-
-		_ = client.Init(context.Background(), true)
+		_ = client.Init(context.Background(), false)
 
 		assert.False(t, client.HasActiveTTLCleanup())
 

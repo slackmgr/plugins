@@ -32,21 +32,24 @@ go test -tags=integration -run TestName ./...
 
 **Core components:**
 
-- **`client.go`** — Core PostgreSQL client implementing `types.DB`. Init flow: `New(opts...)` → `Connect(ctx)` → `Init(ctx, skipSchemaValidation bool)`. `Connect` establishes the pgxpool connection; `Init` creates tables, validates schema, and starts the background TTL cleanup goroutine. `Close(ctx)` stops the goroutine and closes the pool.
+- **`client.go`** — Core PostgreSQL client implementing `types.DB`. Init flow: `New(opts...)` → `Connect(ctx)` → `Init(ctx, skipSchemaValidation bool)`. `Connect` establishes the pgxpool connection; `Init` runs pending schema migrations (via `runMigrations` / `applyMigration`) and starts the background TTL cleanup goroutine. The `skipSchemaValidation` parameter is accepted for interface compatibility but ignored. `Close(ctx)` stops the goroutine and closes the pool.
 
-- **`options.go`** — Functional options: connection config (`WithHost`, `WithPort`, `WithUser`, `WithPassword`, `WithDatabase`, `WithSSLMode`), pool tuning (`WithPool*`), table names (`WithIssuesTable`, etc.), and TTL config (`WithAlertsTimeToLive`, `WithIssuesTimeToLive`, `WithTTLCleanupInterval`, `WithTTLCleanupDisabled`). Includes `createStatements()` and `verifyCurrentDatabaseVersion()` for schema management.
+- **`options.go`** — Functional options: connection config (`WithHost`, `WithPort`, `WithUser`, `WithPassword`, `WithDatabase`, `WithSSLMode`, SSL cert paths), pool tuning (`WithPool*`), table names (`WithIssuesTable`, `WithSchemaMigrationsTable`, etc.), and TTL config (`WithAlertsTimeToLive`, `WithIssuesTimeToLive`, `WithTTLCleanupInterval`, `WithTTLCleanupDisabled`). Defines the `migration` struct and `migrations()` method that returns the ordered list of schema migrations.
 
 - **`export_test.go`** — Exports internal symbols (`validateTableName`, `getIssueInsertSQL`, etc.) for use in `_internal_test.go` files.
 
 **Database schema:**
 
-Four tables (names configurable):
+Five tables (names configurable via `With*Table` options):
 - `issues` — with correlation IDs, open/closed state, TTL (`expires_at`)
 - `alerts` — with TTL (`expires_at`)
 - `move_mappings` — issue move tracking between channels
 - `channel_processing_state` — per-channel processing timestamps
+- `schema_migrations` — tracks applied migration versions (`version INTEGER PRIMARY KEY`, `applied_at TIMESTAMPTZ`)
 
-All tables include a `version` column and an `attrs` JSONB column for the serialised entity.
+All data tables include a `version` column and an `attrs` JSONB column for the serialised entity.
+
+**Adding a future migration:** append a new `migration{version: N, stmts: [...]}` entry to `migrations()` in `options.go`. Migrations are applied in order, each exactly once, under a `pg_advisory_xact_lock`.
 
 **TTL:** Closed issues expire after 180 days; alerts after 30 days (both configurable). A background goroutine (started by `Init`, stopped by `Close`) deletes expired rows on a configurable interval (default 1 hour). Expired records are excluded from reads regardless of whether the cleanup goroutine runs.
 

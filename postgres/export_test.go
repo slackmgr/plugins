@@ -25,15 +25,6 @@ var (
 		return o.connectionString()
 	}
 
-	ExportCreateStatements = func(opts ...Option) []string {
-		o := newOptions()
-		for _, opt := range opts {
-			opt(o)
-		}
-
-		return o.createStatements()
-	}
-
 	ExportDropStatements = func(opts ...Option) []string {
 		o := newOptions()
 		for _, opt := range opts {
@@ -43,18 +34,15 @@ var (
 		return o.dropStatements()
 	}
 
-	ExportVerifyDatabaseSchema = func(opts ...Option) func(map[string]*dbRow) error {
+	ExportMigrations = func(opts ...Option) []migration {
 		o := newOptions()
 		for _, opt := range opts {
 			opt(o)
 		}
 
-		return o.verifyCurrentDatabaseVersion
+		return o.migrations()
 	}
 )
-
-// DBRow exports the internal dbRow type for testing.
-type DBRow = dbRow
 
 // Pool exports the internal pool interface for testing.
 type Pool = pool
