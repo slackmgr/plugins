@@ -449,7 +449,7 @@ func TestSaveIssue_Validation(t *testing.T) {
 		}
 
 		mock.ExpectExec("INSERT INTO issues").
-			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, "post-789", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := client.SaveIssue(context.Background(), issue)
@@ -471,7 +471,7 @@ func TestSaveIssue_Validation(t *testing.T) {
 		}
 
 		mock.ExpectExec("INSERT INTO issues").
-			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, "post-789", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := client.SaveIssue(context.Background(), issue)
@@ -492,7 +492,7 @@ func TestSaveIssue_Validation(t *testing.T) {
 		}
 
 		mock.ExpectExec("INSERT INTO issues").
-			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", false, "", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", false, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := client.SaveIssue(context.Background(), issue)
@@ -514,7 +514,7 @@ func TestSaveIssue_Validation(t *testing.T) {
 		}
 
 		mock.ExpectExec("INSERT INTO issues").
-			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, "post-789", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnError(errors.New("unique constraint violation"))
 
 		err := client.SaveIssue(context.Background(), issue)
@@ -558,7 +558,7 @@ func TestSaveIssues_BatchLogic(t *testing.T) {
 
 		// Single issue should use direct Exec, not batch
 		mock.ExpectExec("INSERT INTO issues").
-			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, "post-789", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := client.SaveIssues(context.Background(), issue)
@@ -619,10 +619,10 @@ func TestSaveIssues_BatchLogic(t *testing.T) {
 
 		batch := mock.ExpectBatch()
 		batch.ExpectExec("INSERT INTO issues").
-			WithArgs("uid1", postgres.IssueModelVersion, "C123", "corr1", true, "", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid1", postgres.IssueModelVersion, "C123", "corr1", true, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 		batch.ExpectExec("INSERT INTO issues").
-			WithArgs("uid2", postgres.IssueModelVersion, "C456", "corr2", false, "", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid2", postgres.IssueModelVersion, "C456", "corr2", false, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := client.SaveIssues(context.Background(), issue1, issue2)
@@ -640,10 +640,10 @@ func TestSaveIssues_BatchLogic(t *testing.T) {
 
 		batch := mock.ExpectBatch()
 		batch.ExpectExec("INSERT INTO issues").
-			WithArgs("uid1", postgres.IssueModelVersion, "C123", "corr1", true, "", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid1", postgres.IssueModelVersion, "C123", "corr1", true, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 		batch.ExpectExec("INSERT INTO issues").
-			WithArgs("uid2", postgres.IssueModelVersion, "C456", "corr2", false, "", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid2", postgres.IssueModelVersion, "C456", "corr2", false, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnError(errors.New("batch insert failed"))
 
 		err := client.SaveIssues(context.Background(), issue1, issue2)
@@ -733,7 +733,7 @@ func TestMoveIssue_Validation(t *testing.T) {
 		}
 
 		mock.ExpectExec("INSERT INTO issues").
-			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, "post-789", pgxmock.AnyArg(), pgxmock.AnyArg()).
+			WithArgs("uid-123", postgres.IssueModelVersion, "C123", "corr-456", true, pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg()).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := client.MoveIssue(context.Background(), issue, "C000", "C123")

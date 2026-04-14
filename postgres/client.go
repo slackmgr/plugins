@@ -628,7 +628,10 @@ func (c *Client) getIssueInsertSQL(issue types.Issue) (string, []any, error) {
 	param3 := issue.ChannelID()
 	param4 := issue.GetCorrelationID()
 	param5 := issue.IsOpen()
-	param6 := issue.CurrentPostID()
+	var param6 *string
+	if postID := issue.CurrentPostID(); postID != "" {
+		param6 = &postID
+	}
 	param7 := string(body)
 	param8 := expiresAt
 

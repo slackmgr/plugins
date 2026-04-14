@@ -68,7 +68,10 @@ func TestGetIssueInsertSQL(t *testing.T) {
 		assert.Equal(t, "C12345", args[2])
 		assert.Equal(t, "corr-456", args[3])
 		assert.Equal(t, true, args[4])
-		assert.Equal(t, "post-789", args[5])
+		postID, ok := args[5].(*string)
+		require.True(t, ok, "args[5] should be *string when post ID is set")
+		require.NotNil(t, postID)
+		assert.Equal(t, "post-789", *postID)
 		// args[6] is the JSON body
 		assert.NotEmpty(t, args[6])
 		// args[7] is expires_at — nil for open issues regardless of TTL config
@@ -97,7 +100,7 @@ func TestGetIssueInsertSQL(t *testing.T) {
 		assert.Equal(t, "uid-999", args[0])
 		assert.Equal(t, "C99999", args[2])
 		assert.Equal(t, false, args[4])
-		assert.Empty(t, args[5])
+		assert.Nil(t, args[5], "empty post ID should be stored as NULL")
 
 		expiresAt, ok := args[7].(*time.Time)
 		require.True(t, ok, "args[7] should be *time.Time")
