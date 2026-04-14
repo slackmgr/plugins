@@ -18,6 +18,7 @@ var client *postgres.Client
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 	c := postgres.New(
+		&types.NoopLogger{},
 		postgres.WithHost("localhost"),
 		postgres.WithPort(5432),
 		postgres.WithUser("postgres"),

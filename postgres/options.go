@@ -290,7 +290,7 @@ func (o *options) connectionString() string {
 		user += ":" + url.QueryEscape(o.password)
 	}
 
-	dsn := fmt.Sprintf("postgres://%s@%s/%s?sslmode=%s", user, host, o.database, o.sslMode)
+	dsn := fmt.Sprintf("postgres://%s@%s/%s?sslmode=%s", user, host, url.PathEscape(o.database), o.sslMode)
 
 	if o.sslRootCert != "" {
 		dsn += "&sslrootcert=" + url.QueryEscape(o.sslRootCert)

@@ -76,6 +76,7 @@ func newClientWithMock(t *testing.T) (*postgres.Client, pgxmock.PgxPoolIface) {
 	require.NoError(t, err)
 
 	client := postgres.New(
+		&types.NoopLogger{},
 		postgres.WithHost("localhost"),
 		postgres.WithPort(5432),
 		postgres.WithUser("testuser"),
@@ -98,6 +99,7 @@ func newClientWithMockAndTTL(t *testing.T) (*postgres.Client, pgxmock.PgxPoolIfa
 	require.NoError(t, err)
 
 	client := postgres.New(
+		&types.NoopLogger{},
 		postgres.WithHost("localhost"),
 		postgres.WithPort(5432),
 		postgres.WithUser("testuser"),
@@ -121,7 +123,7 @@ func newClientWithMockAndTTL(t *testing.T) (*postgres.Client, pgxmock.PgxPoolIfa
 func TestNew(t *testing.T) {
 	t.Parallel()
 
-	client := postgres.New(postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
+	client := postgres.New(&types.NoopLogger{}, postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
 
 	require.NotNil(t, client)
 }
@@ -132,7 +134,7 @@ func TestClose(t *testing.T) {
 	t.Run("close when not connected returns nil", func(t *testing.T) {
 		t.Parallel()
 
-		client := postgres.New(postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
+		client := postgres.New(&types.NoopLogger{}, postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
 
 		err := client.Close(context.Background())
 
@@ -158,7 +160,7 @@ func TestConnect_InvalidConfig(t *testing.T) {
 	t.Run("missing user returns error", func(t *testing.T) {
 		t.Parallel()
 
-		client := postgres.New(postgres.WithDatabase("testdb"))
+		client := postgres.New(&types.NoopLogger{}, postgres.WithDatabase("testdb"))
 
 		err := client.Connect(context.Background())
 
@@ -169,7 +171,7 @@ func TestConnect_InvalidConfig(t *testing.T) {
 	t.Run("missing database returns error", func(t *testing.T) {
 		t.Parallel()
 
-		client := postgres.New(postgres.WithUser("testuser"))
+		client := postgres.New(&types.NoopLogger{}, postgres.WithUser("testuser"))
 
 		err := client.Connect(context.Background())
 
@@ -181,6 +183,7 @@ func TestConnect_InvalidConfig(t *testing.T) {
 		t.Parallel()
 
 		client := postgres.New(
+			&types.NoopLogger{},
 			postgres.WithUser("testuser"),
 			postgres.WithDatabase("testdb"),
 			postgres.WithIssuesTable("invalid-table-name"),
@@ -200,7 +203,7 @@ func TestConnect_InvalidConfig(t *testing.T) {
 func TestInit_NotConnected(t *testing.T) {
 	t.Parallel()
 
-	client := postgres.New(postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
+	client := postgres.New(&types.NoopLogger{}, postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
 
 	err := client.Init(context.Background(), false)
 
@@ -275,6 +278,7 @@ func TestInit_TTLCleanupStarted(t *testing.T) {
 		require.NoError(t, err)
 
 		client := postgres.New(
+			&types.NoopLogger{},
 			postgres.WithUser("testuser"),
 			postgres.WithDatabase("testdb"),
 			postgres.WithTTLCleanupDisabled(),
@@ -294,7 +298,7 @@ func TestInit_TTLCleanupStarted(t *testing.T) {
 func TestDropAllData_NotConnected(t *testing.T) {
 	t.Parallel()
 
-	client := postgres.New(postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
+	client := postgres.New(&types.NoopLogger{}, postgres.WithUser("testuser"), postgres.WithDatabase("testdb"))
 
 	err := client.DropAllData(context.Background())
 

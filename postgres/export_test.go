@@ -54,5 +54,8 @@ func (c *Client) SetPool(p Pool) {
 
 // HasActiveTTLCleanup returns true if the background TTL cleanup goroutine is running.
 func (c *Client) HasActiveTTLCleanup() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	return c.cancelTTL != nil
 }

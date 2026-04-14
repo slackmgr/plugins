@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -31,16 +32,21 @@ type pool interface {
 type Client struct {
 	conn      pool
 	opts      *options
+	logger    types.Logger
+	mu        sync.Mutex     // guards cancelTTL during Init/Close
+	ttlWg     sync.WaitGroup // tracks the TTL goroutine for graceful drain
 	cancelTTL context.CancelFunc
 }
 
-func New(opts ...Option) *Client {
+func New(logger types.Logger, opts ...Option) *Client {
 	o := newOptions()
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	return &Client{opts: o}
+	logger = logger.WithField("plugin", "postgres")
+
+	return &Client{opts: o, logger: logger}
 }
 
 func (c *Client) Connect(ctx context.Context) error {
@@ -93,6 +99,7 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 
 	if err := conn.Ping(ctx); err != nil {
+		conn.Close()
 		return fmt.Errorf("failed to ping Postgres db: %w", err)
 	}
 
@@ -102,10 +109,14 @@ func (c *Client) Connect(ctx context.Context) error {
 }
 
 func (c *Client) Close(_ context.Context) error {
+	c.mu.Lock()
 	if c.cancelTTL != nil {
 		c.cancelTTL()
 		c.cancelTTL = nil
 	}
+	c.mu.Unlock()
+
+	c.ttlWg.Wait() // drain any in-flight Exec before tearing down the pool
 
 	if c.conn == nil {
 		return nil
@@ -131,13 +142,16 @@ func (c *Client) Init(ctx context.Context, _ bool) error {
 		return err
 	}
 
+	c.mu.Lock()
 	if c.cancelTTL == nil && c.opts.ttlCleanupInterval != nil {
 		ttlCtx, cancel := context.WithCancel(context.Background())
 		c.cancelTTL = cancel
+		c.ttlWg.Add(1)
 
 		//nolint:contextcheck // Intentionally using a new context: the TTL goroutine must outlive the Init call.
 		go c.runTTLCleanup(ttlCtx)
 	}
+	c.mu.Unlock()
 
 	return nil
 }
@@ -695,6 +709,8 @@ func (c *Client) applyMigration(ctx context.Context, m migration) error {
 }
 
 func (c *Client) runTTLCleanup(ctx context.Context) {
+	defer c.ttlWg.Done()
+
 	ticker := time.NewTicker(*c.opts.ttlCleanupInterval)
 	defer ticker.Stop()
 
@@ -709,9 +725,15 @@ func (c *Client) runTTLCleanup(ctx context.Context) {
 }
 
 func (c *Client) deleteExpiredRows(ctx context.Context) {
-	_, _ = c.conn.Exec(ctx, fmt.Sprintf(
-		"DELETE FROM %s WHERE expires_at IS NOT NULL AND expires_at < NOW()", c.opts.alertsTable))
+	if _, err := c.conn.Exec(ctx, fmt.Sprintf(
+		"DELETE FROM %s WHERE expires_at IS NOT NULL AND expires_at < NOW()", c.opts.alertsTable,
+	)); err != nil {
+		c.logger.Errorf("failed to delete expired alerts: %v", err)
+	}
 
-	_, _ = c.conn.Exec(ctx, fmt.Sprintf(
-		"DELETE FROM %s WHERE expires_at IS NOT NULL AND expires_at < NOW()", c.opts.issuesTable))
+	if _, err := c.conn.Exec(ctx, fmt.Sprintf(
+		"DELETE FROM %s WHERE expires_at IS NOT NULL AND expires_at < NOW()", c.opts.issuesTable,
+	)); err != nil {
+		c.logger.Errorf("failed to delete expired issues: %v", err)
+	}
 }

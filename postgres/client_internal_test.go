@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slackmgr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +44,7 @@ func (m *mockIssueInternal) MarshalJSON() ([]byte, error) {
 func TestGetIssueInsertSQL(t *testing.T) {
 	t.Parallel()
 
-	client := New(WithIssuesTable("test_issues"))
+	client := New(&types.NoopLogger{}, WithIssuesTable("test_issues"))
 
 	t.Run("generates correct SQL and args for open issue", func(t *testing.T) {
 		t.Parallel()
@@ -126,7 +127,7 @@ func TestGetIssueInsertSQL(t *testing.T) {
 		t.Parallel()
 
 		ttl := 7 * 24 * time.Hour // override default 180 days with 7 days
-		clientWithCustomTTL := New(WithIssuesTable("test_issues"), WithIssuesTimeToLive(ttl))
+		clientWithCustomTTL := New(&types.NoopLogger{}, WithIssuesTable("test_issues"), WithIssuesTimeToLive(ttl))
 
 		issue := &mockIssueInternal{
 			channelID:     "C99999",
@@ -214,7 +215,7 @@ func TestGetIssueInsertSQL(t *testing.T) {
 	t.Run("uses configured table name", func(t *testing.T) {
 		t.Parallel()
 
-		customClient := New(WithIssuesTable("custom_issues_table"))
+		customClient := New(&types.NoopLogger{}, WithIssuesTable("custom_issues_table"))
 		issue := &mockIssueInternal{
 			channelID:     "C12345",
 			uniqueID:      "uid-123",
