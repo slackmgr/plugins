@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.4.0
-	github.com/slackmgr/types v0.4.1
+	github.com/slackmgr/types v0.5.1
 )
 
 require (
