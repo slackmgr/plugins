@@ -13,6 +13,12 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-05-08
+
+### Changed
+
+- Bump `github.com/slackmgr/types` dependency to v0.5.2
+
 ## [0.2.5] - 2026-05-07
 
 ### Changed
@@ -58,7 +64,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 - Renamed shared types dependency from `github.com/slackmgr/slack-manager-common` to `github.com/slackmgr/types` (v0.3.0); all public API references updated accordingly
 - Module path updated from `github.com/slackmgr/slack-manager-sqs-plugin` to `github.com/slackmgr/plugins/sqs`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.5...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.6...HEAD
+[0.2.6]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.5...sqs/v0.2.6
 [0.2.5]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.4...sqs/v0.2.5
 [0.2.4]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.3...sqs/v0.2.4
 [0.2.3]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.2...sqs/v0.2.3
