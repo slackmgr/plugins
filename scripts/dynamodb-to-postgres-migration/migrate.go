@@ -15,6 +15,7 @@ import (
 	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/slackmgr/plugins/postgres"
+	"github.com/slackmgr/types"
 )
 
 type stats struct {
@@ -70,7 +71,7 @@ func run(ctx context.Context, cfg *appConfig) error {
 		pgOpts = append(pgOpts, postgres.WithSSLKey(cfg.pgSSLKey))
 	}
 
-	pgClient := postgres.New(pgOpts...)
+	pgClient := postgres.New(&types.NoopLogger{}, pgOpts...)
 	if err := pgClient.Connect(ctx); err != nil {
 		return fmt.Errorf("failed to connect to Postgres: %w", err)
 	}
