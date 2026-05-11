@@ -13,6 +13,12 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-05-11
+
+### Changed
+
+- Bump `github.com/slackmgr/types` dependency to v0.6.1
+
 ## [0.3.5] - 2026-05-08
 
 ### Changed
@@ -57,7 +63,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-dynamodb-plugin` to `github.com/slackmgr/plugins/dynamodb`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.5...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.6...HEAD
+[0.3.6]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.5...dynamodb/v0.3.6
 [0.3.5]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.4...dynamodb/v0.3.5
 [0.3.4]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.3...dynamodb/v0.3.4
 [0.3.3]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.2...dynamodb/v0.3.3

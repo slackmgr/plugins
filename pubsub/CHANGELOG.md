@@ -10,6 +10,12 @@ Versions are tagged using the `pubsub/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-05-11
+
+### Changed
+
+- Bump `github.com/slackmgr/types` dependency to v0.6.1
+
 ## [0.1.5] - 2026-05-08
 
 ### Changed
@@ -55,7 +61,8 @@ _Initial version in the slackmgr/plugins monorepo. The plugin was previously dev
 - Functional options pattern for all configuration (`WithPublisher*`, `WithSubscriber*`)
 - Dependency injection interfaces for testing (`pubsubClient`, `pubsubPublisher`, `pubsubSubscriber`)
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.5...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.6...HEAD
+[0.1.6]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.5...pubsub/v0.1.6
 [0.1.5]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.4...pubsub/v0.1.5
 [0.1.4]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.3...pubsub/v0.1.4
 [0.1.3]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.2...pubsub/v0.1.3
