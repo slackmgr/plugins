@@ -47,8 +47,8 @@ github.com/pashagolub/pgxmock/v4 v4.9.0 h1:itlO8nrVRnzkdMBXLs8pWUyyB2PC3Gku0WGIj
 github.com/pashagolub/pgxmock/v4 v4.9.0/go.mod h1:9L57pC193h2aKRHVyiiE817avasIPZnPwPlw3JczWvM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/slackmgr/plugins/postgres v0.5.4 h1:99TXogDyx2csYIowmtsAMgfyAKqWFfhtCYl6xzxnpIg=
-github.com/slackmgr/plugins/postgres v0.5.4/go.mod h1:YLPpy9kQeeEnC3JPG74nb8HcGvf9mP0hN7goTqTKPVA=
+github.com/slackmgr/plugins/postgres v0.5.5 h1:Ghp44RNM9v/VQl19+SAkJRvgWwnBIlLP7LQ0LNVZQ7M=
+github.com/slackmgr/plugins/postgres v0.5.5/go.mod h1:QHQflZjXXPDTleYeEtlXwDJU/shpSVCNKll7WHL3nZA=
 github.com/slackmgr/types v0.6.1 h1:X5yCw/TFCBhsqW2f71SQp1QiDz5xak5/FIQfxOz26rs=
 github.com/slackmgr/types v0.6.1/go.mod h1:4JMAqXCLUpZrmTHeU1RDhjbUu5lNAoZ112fvflovZ0Q=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

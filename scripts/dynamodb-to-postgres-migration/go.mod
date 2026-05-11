@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.12
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.57.0
 	github.com/jackc/pgx/v5 v5.9.1
-	github.com/slackmgr/plugins/postgres v0.5.4
+	github.com/slackmgr/plugins/postgres v0.5.5
 	github.com/slackmgr/types v0.6.1
 )
 
