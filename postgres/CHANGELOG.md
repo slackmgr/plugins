@@ -13,6 +13,12 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+### Fixed
+
+- Persist the full channel processing state. `SaveChannelProcessingState` and `FindChannelProcessingState` previously ignored `OpenIssues` and `LastChannelActivity`, so `OpenIssues` always read back as 0 on a database cache miss. This disabled alert-driven Slack throttling and could pause issue processing in multi-instance deployments. Schema migration 3 adds the `open_issues` and `last_channel_activity` columns
+- `FindChannelProcessingState` returns timestamps in UTC
+- Integration tests now run the full shared `dbtests` suite
+
 ## [0.6.0] - 2026-10-21
 
 ### Changed

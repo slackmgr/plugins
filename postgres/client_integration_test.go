@@ -113,3 +113,51 @@ func TestDeletingMoveMappingsIntegration(t *testing.T) {
 func TestCreatingAndFindingChannelProcessingStateIntegration(t *testing.T) {
 	dbtests.TestCreatingAndFindingChannelProcessingState(t, client)
 }
+
+func TestChannelProcessingState_EdgeCasesIntegration(t *testing.T) {
+	dbtests.TestChannelProcessingState_EdgeCases(t, client)
+}
+
+func TestConcurrentMoveMappingIntegration(t *testing.T) {
+	dbtests.TestConcurrentMoveMapping(t, client)
+}
+
+func TestConcurrentSaveIssueIntegration(t *testing.T) {
+	dbtests.TestConcurrentSaveIssue(t, client)
+}
+
+func TestContextCancellationIntegration(t *testing.T) {
+	dbtests.TestContextCancellation(t, client)
+}
+
+func TestFindActiveChannels_ManyChannelsIntegration(t *testing.T) {
+	dbtests.TestFindActiveChannels_ManyChannels(t, client)
+}
+
+func TestInitIntegration(t *testing.T) {
+	dbtests.TestInit(t, client)
+}
+
+func TestInit_WithSchemaValidationIntegration(t *testing.T) {
+	dbtests.TestInit_WithSchemaValidation(t, client)
+}
+
+func TestLoadOpenIssuesInChannel_LargeDatasetIntegration(t *testing.T) {
+	dbtests.TestLoadOpenIssuesInChannel_LargeDataset(t, client)
+}
+
+func TestMoveIssueIntegration(t *testing.T) {
+	dbtests.TestMoveIssue(t, client)
+}
+
+func TestMoveIssue_EdgeCasesIntegration(t *testing.T) {
+	dbtests.TestMoveIssue_EdgeCases(t, client)
+}
+
+func TestSaveIssue_ComplexAlertIntegration(t *testing.T) {
+	dbtests.TestSaveIssue_ComplexAlert(t, client)
+}
+
+func TestSpecialCharactersInCorrelationIDIntegration(t *testing.T) {
+	dbtests.TestSpecialCharactersInCorrelationID(t, client)
+}

@@ -342,6 +342,14 @@ func (o *options) migrations() []migration {
 				fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s_channel_correlation_uniq ON %s (channel_id, correlation_id);`, o.moveMappingsTable, o.moveMappingsTable),
 			},
 		},
+		{
+			version: 3,
+			stmts: []string{
+				// Persist the full channel processing state (previously only created and last_processed were stored)
+				fmt.Sprintf(`ALTER TABLE %s ADD COLUMN IF NOT EXISTS last_channel_activity TIMESTAMP WITH TIME ZONE NULL;`, o.channelProcessingStateTable),
+				fmt.Sprintf(`ALTER TABLE %s ADD COLUMN IF NOT EXISTS open_issues INTEGER NOT NULL DEFAULT 0;`, o.channelProcessingStateTable),
+			},
+		},
 	}
 }
 

@@ -572,10 +572,15 @@ func (c *Client) SaveChannelProcessingState(ctx context.Context, state *types.Ch
 	param3 := state.ChannelID
 	param4 := state.Created
 	param5 := state.LastProcessed
+	var param6 *time.Time
+	if !state.LastChannelActivity.IsZero() {
+		param6 = &state.LastChannelActivity
+	}
+	param7 := state.OpenIssues
 
-	sql := fmt.Sprintf("INSERT INTO %s (id, version, channel_id, created, last_processed) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET last_processed = EXCLUDED.last_processed", c.opts.channelProcessingStateTable)
+	sql := fmt.Sprintf("INSERT INTO %s (id, version, channel_id, created, last_processed, last_channel_activity, open_issues) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET last_processed = EXCLUDED.last_processed, last_channel_activity = EXCLUDED.last_channel_activity, open_issues = EXCLUDED.open_issues", c.opts.channelProcessingStateTable)
 
-	if _, err := c.conn.Exec(ctx, sql, param1, param2, param3, param4, param5); err != nil {
+	if _, err := c.conn.Exec(ctx, sql, param1, param2, param3, param4, param5, param6, param7); err != nil {
 		return fmt.Errorf("failed to save channel processing state to Postgres db: %w", err)
 	}
 
@@ -593,18 +598,26 @@ func (c *Client) FindChannelProcessingState(ctx context.Context, channelID strin
 
 	param1 := channelID
 
-	query := fmt.Sprintf("SELECT channel_id, created, last_processed FROM %s WHERE id = $1", c.opts.channelProcessingStateTable)
+	query := fmt.Sprintf("SELECT channel_id, created, last_processed, last_channel_activity, open_issues FROM %s WHERE id = $1", c.opts.channelProcessingStateTable)
 
 	row := c.conn.QueryRow(ctx, query, param1)
 
 	var state types.ChannelProcessingState
+	var lastChannelActivity *time.Time
 
-	if err := row.Scan(&state.ChannelID, &state.Created, &state.LastProcessed); err != nil {
+	if err := row.Scan(&state.ChannelID, &state.Created, &state.LastProcessed, &lastChannelActivity, &state.OpenIssues); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil // No processing state found for the channel
 		}
 
 		return nil, fmt.Errorf("failed to find channel processing state in Postgres db: %w", err)
+	}
+
+	state.Created = state.Created.UTC()
+	state.LastProcessed = state.LastProcessed.UTC()
+
+	if lastChannelActivity != nil {
+		state.LastChannelActivity = lastChannelActivity.UTC()
 	}
 
 	return &state, nil

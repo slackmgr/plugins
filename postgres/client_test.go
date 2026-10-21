@@ -217,27 +217,24 @@ func TestInit_NotConnected(t *testing.T) {
 func expectMigrations(mock pgxmock.PgxPoolIface) {
 	// CREATE TABLE IF NOT EXISTS schema_migrations
 	mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
-	// Transaction for migration v1
+
+	// Number of statements in each migration, in order.
+	for _, stmtCount := range []int{10, 3, 2} {
+		expectMigration(mock, stmtCount)
+	}
+}
+
+// expectMigration sets up mock expectations for a single pending migration with the given number of statements.
+func expectMigration(mock pgxmock.PgxPoolIface, stmtCount int) {
 	mock.ExpectBegin()
 	// Advisory lock — passes migrationLockKey as argument
 	mock.ExpectExec("pg_advisory_xact_lock").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("", 0))
 	// SELECT EXISTS — passes migration version as argument
 	mock.ExpectQuery("SELECT EXISTS").WithArgs(pgxmock.AnyArg()).WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(false))
-	// 10 CREATE TABLE/INDEX statements
-	for range 10 {
+	for range stmtCount {
 		mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
 	}
 	// INSERT INTO schema_migrations — passes migration version as argument
-	mock.ExpectExec("INSERT INTO").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("INSERT", 1))
-	mock.ExpectCommit()
-	// Transaction for migration v2
-	mock.ExpectBegin()
-	mock.ExpectExec("pg_advisory_xact_lock").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("", 0))
-	mock.ExpectQuery("SELECT EXISTS").WithArgs(pgxmock.AnyArg()).WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(false))
-	// 3 CREATE UNIQUE INDEX statements
-	for range 3 {
-		mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
-	}
 	mock.ExpectExec("INSERT INTO").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("INSERT", 1))
 	mock.ExpectCommit()
 }
@@ -1252,13 +1249,15 @@ func TestSaveChannelProcessingState_Validation(t *testing.T) {
 		client, mock := newClientWithMock(t)
 		now := time.Now()
 		state := &types.ChannelProcessingState{
-			ChannelID:     "C123",
-			Created:       now,
-			LastProcessed: now,
+			ChannelID:           "C123",
+			Created:             now,
+			LastProcessed:       now,
+			LastChannelActivity: now,
+			OpenIssues:          7,
 		}
 
 		mock.ExpectExec("INSERT INTO channel_state").
-			WithArgs("C123", postgres.ChannelProcessingStateModelVersion, "C123", now, now).
+			WithArgs("C123", postgres.ChannelProcessingStateModelVersion, "C123", now, now, &now, 7).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
 		err := client.SaveChannelProcessingState(context.Background(), state)
@@ -1291,9 +1290,9 @@ func TestFindChannelProcessingState_Validation(t *testing.T) {
 
 		client, mock := newClientWithMock(t)
 
-		mock.ExpectQuery("SELECT channel_id, created, last_processed FROM channel_state").
+		mock.ExpectQuery("SELECT channel_id, created, last_processed, last_channel_activity, open_issues FROM channel_state").
 			WithArgs("C123").
-			WillReturnRows(pgxmock.NewRows([]string{"channel_id", "created", "last_processed"}))
+			WillReturnRows(pgxmock.NewRows([]string{"channel_id", "created", "last_processed", "last_channel_activity", "open_issues"}))
 
 		state, err := client.FindChannelProcessingState(context.Background(), "C123")
 
@@ -1309,10 +1308,10 @@ func TestFindChannelProcessingState_Validation(t *testing.T) {
 		created := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 		lastProcessed := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
-		mock.ExpectQuery("SELECT channel_id, created, last_processed FROM channel_state").
+		mock.ExpectQuery("SELECT channel_id, created, last_processed, last_channel_activity, open_issues FROM channel_state").
 			WithArgs("C123").
-			WillReturnRows(pgxmock.NewRows([]string{"channel_id", "created", "last_processed"}).
-				AddRow("C123", created, lastProcessed))
+			WillReturnRows(pgxmock.NewRows([]string{"channel_id", "created", "last_processed", "last_channel_activity", "open_issues"}).
+				AddRow("C123", created, lastProcessed, &lastProcessed, 42))
 
 		state, err := client.FindChannelProcessingState(context.Background(), "C123")
 
@@ -1321,6 +1320,8 @@ func TestFindChannelProcessingState_Validation(t *testing.T) {
 		assert.Equal(t, "C123", state.ChannelID)
 		assert.Equal(t, created, state.Created)
 		assert.Equal(t, lastProcessed, state.LastProcessed)
+		assert.Equal(t, lastProcessed, state.LastChannelActivity)
+		assert.Equal(t, 42, state.OpenIssues)
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
 
@@ -1329,7 +1330,7 @@ func TestFindChannelProcessingState_Validation(t *testing.T) {
 
 		client, mock := newClientWithMock(t)
 
-		mock.ExpectQuery("SELECT channel_id, created, last_processed FROM channel_state").
+		mock.ExpectQuery("SELECT channel_id, created, last_processed, last_channel_activity, open_issues FROM channel_state").
 			WithArgs("C123").
 			WillReturnError(errors.New("query failed"))
 

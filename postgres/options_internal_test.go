@@ -141,4 +141,18 @@ func TestMigrations(t *testing.T) {
 		require.NotEmpty(t, migrations)
 		assert.Len(t, migrations[0].stmts, 10)
 	})
+
+	t.Run("migration 3 adds full channel processing state columns", func(t *testing.T) {
+		t.Parallel()
+
+		o := newOptions()
+		migrations := o.migrations()
+
+		require.GreaterOrEqual(t, len(migrations), 3)
+		assert.Equal(t, 3, migrations[2].version)
+
+		combined := strings.Join(migrations[2].stmts, "\n")
+		assert.Contains(t, combined, "channel_processing_state ADD COLUMN IF NOT EXISTS last_channel_activity")
+		assert.Contains(t, combined, "channel_processing_state ADD COLUMN IF NOT EXISTS open_issues")
+	})
 }
