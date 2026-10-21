@@ -33,12 +33,20 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6.0.2
+      uses: actions/checkout@v7.0.1
 
-    - name: Setup Go
-      uses: actions/setup-go@v6.2.0
+    - name: Read Go version
+      id: go-version
+      run: |
+        version=$(sed -nE 's/^go ([0-9]+\.[0-9]+).*/\1/p' postgres/go.mod)
+        if [ -z "$version" ]; then echo "::error::Could not read Go version from postgres/go.mod"; exit 1; fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Go
+      uses: actions/setup-go@v7.0.0
       with:
-        go-version-file: 'postgres/go.mod'
+        go-version: ${{ steps.go-version.outputs.version }}
+        check-latest: true
         cache: true
         cache-dependency-path: 'postgres/go.sum'
 
@@ -71,17 +79,25 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6.0.2
+      uses: actions/checkout@v7.0.1
+
+    - name: Read Go version
+      id: go-version
+      run: |
+        version=$(sed -nE 's/^go ([0-9]+\.[0-9]+).*/\1/p' postgres/go.mod)
+        if [ -z "$version" ]; then echo "::error::Could not read Go version from postgres/go.mod"; exit 1; fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
 
     - name: Set up Go
-      uses: actions/setup-go@v6.2.0
+      uses: actions/setup-go@v7.0.0
       with:
-        go-version-file: 'postgres/go.mod'
+        go-version: ${{ steps.go-version.outputs.version }}
+        check-latest: true
         cache: true
         cache-dependency-path: 'postgres/go.sum'
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v9.2.0
+      uses: golangci/golangci-lint-action@v9.3.0
       with:
         version: latest
         args: --timeout=5m
@@ -93,24 +109,32 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6.0.2
+      uses: actions/checkout@v7.0.1
+
+    - name: Read Go version
+      id: go-version
+      run: |
+        version=$(sed -nE 's/^go ([0-9]+\.[0-9]+).*/\1/p' postgres/go.mod)
+        if [ -z "$version" ]; then echo "::error::Could not read Go version from postgres/go.mod"; exit 1; fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
 
     - name: Set up Go
-      uses: actions/setup-go@v6.2.0
+      uses: actions/setup-go@v7.0.0
       with:
-        go-version: 'stable'
+        go-version: ${{ steps.go-version.outputs.version }}
+        check-latest: true
         cache: true
         cache-dependency-path: 'postgres/go.sum'
 
     - name: Install gosec
       run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
-    - name: Install govulncheck
-      run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
     - name: Run Gosec Security Scanner
       working-directory: postgres
       run: gosec ./...
+
+    - name: Install govulncheck
+      run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
     - name: Run govulncheck
       working-directory: postgres

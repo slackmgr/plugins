@@ -10,6 +10,17 @@ Versions are tagged using the `pubsub/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+### Changed
+
+- Minimum Go version is now 1.26
+- Bump `github.com/slackmgr/types` dependency to v0.7.1
+- Update all direct dependencies (`cloud.google.com/go/pubsub/v2` v2.7.0, `cloud.google.com/go/iam` v1.11.0, `cloud.google.com/go/auth` v0.20.0)
+- Bump `golang.org/x/net` to v0.61.0 and `google.golang.org/grpc` to v1.84.0 (fixes GO-2026-6617, GO-2026-6612, GO-2026-6611, GO-2026-6603 and GO-2026-6348)
+- CI and code scanning workflows read the Go version (major.minor) from `go.mod`/`go.work` and install the latest patch release (`check-latest: true`), so all jobs, including gosec and both govulncheck runs, use the same Go version
+- Update GitHub Actions to latest versions (`actions/checkout` v7.0.1, `actions/setup-go` v7.0.0, `github/codeql-action` v4.39.0, `golangci/golangci-lint-action` v9.3.0)
+- Disable the `exhaustruct_v5` linter (renamed in golangci-lint 2.15), matching the existing `exhaustruct` exclusion
+- README: Go requirement updated to 1.26+
+
 ## [0.1.6] - 2026-05-11
 
 ### Changed

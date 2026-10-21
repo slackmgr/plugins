@@ -233,11 +233,11 @@ func (c *Client) read(ctx context.Context, sinkCh chan<- *types.FifoQueueItem) e
 	}
 
 	input := &sqs.ReceiveMessageInput{
-		QueueUrl:            &c.queueURL,
-		MaxNumberOfMessages: c.opts.sqsReceiveMaxNumberOfMessages,
-		VisibilityTimeout:   c.opts.sqsVisibilityTimeoutSeconds,
-		WaitTimeSeconds:     c.opts.sqsReceiveWaitTimeSeconds,
-		AttributeNames:      []sqstypes.QueueAttributeName{sqstypes.QueueAttributeName(sqstypes.MessageSystemAttributeNameMessageGroupId)},
+		QueueUrl:                    &c.queueURL,
+		MaxNumberOfMessages:         c.opts.sqsReceiveMaxNumberOfMessages,
+		VisibilityTimeout:           c.opts.sqsVisibilityTimeoutSeconds,
+		WaitTimeSeconds:             c.opts.sqsReceiveWaitTimeSeconds,
+		MessageSystemAttributeNames: []sqstypes.MessageSystemAttributeName{sqstypes.MessageSystemAttributeNameMessageGroupId},
 	}
 
 	output, err := c.client.ReceiveMessage(ctx, input)

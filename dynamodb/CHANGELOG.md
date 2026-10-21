@@ -13,6 +13,17 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+### Changed
+
+- Minimum Go version is now 1.26
+- Bump `github.com/slackmgr/types` dependency to v0.7.1
+- Update all direct dependencies (`github.com/aws/aws-sdk-go-v2` v1.47.3, `github.com/aws/aws-sdk-go-v2/service/dynamodb` v1.72.0, `github.com/aws/aws-sdk-go-v2/config` v1.33.9, `github.com/stretchr/testify` v1.12.1)
+- Use `errors.AsType` when checking for a missing table (no behaviour change)
+- CI and code scanning workflows read the Go version (major.minor) from `go.mod`/`go.work` and install the latest patch release (`check-latest: true`), so all jobs, including gosec and both govulncheck runs, use the same Go version
+- Update GitHub Actions to latest versions (`actions/checkout` v7.0.1, `actions/setup-go` v7.0.0, `github/codeql-action` v4.39.0, `golangci/golangci-lint-action` v9.3.0)
+- Disable the `exhaustruct_v5` linter (renamed in golangci-lint 2.15), matching the existing `exhaustruct` exclusion
+- README: Go requirement updated to 1.26+
+
 ## [0.3.6] - 2026-05-11
 
 ### Changed

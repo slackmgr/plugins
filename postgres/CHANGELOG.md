@@ -13,6 +13,17 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+### Changed
+
+- Minimum Go version is now 1.26
+- Bump `github.com/slackmgr/types` dependency to v0.7.1
+- Update direct dependencies (`github.com/jackc/pgx/v5` v5.10.0, `github.com/stretchr/testify` v1.12.1). `pgx` v5.11.0 is held back because the test mock `github.com/pashagolub/pgxmock/v4` does not support its new `Rows.TypeMap` method (only a v6 beta does)
+- Bump `golang.org/x/text` to v0.43.0 (fixes GO-2026-6629 and GO-2026-5970)
+- CI and code scanning workflows read the Go version (major.minor) from `go.mod`/`go.work` and install the latest patch release (`check-latest: true`), so all jobs, including gosec and both govulncheck runs, use the same Go version
+- Update GitHub Actions to latest versions (`actions/checkout` v7.0.1, `actions/setup-go` v7.0.0, `github/codeql-action` v4.39.0, `golangci/golangci-lint-action` v9.3.0)
+- Disable the `exhaustruct_v5` linter (renamed in golangci-lint 2.15), matching the existing `exhaustruct` exclusion
+- README: Go requirement updated to 1.26+
+
 ## [0.5.5] - 2026-05-11
 
 ### Changed

@@ -15,7 +15,7 @@ Part of the [slackmgr/plugins](https://github.com/slackmgr/plugins) monorepo. Ve
 go get github.com/slackmgr/plugins/dynamodb
 ```
 
-Requires Go 1.25+.
+Requires Go 1.26+.
 
 ## Usage
 

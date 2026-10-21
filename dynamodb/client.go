@@ -127,8 +127,7 @@ func (c *Client) Init(ctx context.Context, skipSchemaValidation bool) error {
 
 	response, err := c.client.DescribeTable(ctx, input)
 	if err != nil {
-		var notFoundError *dynamodbtypes.ResourceNotFoundException
-		if errors.As(err, &notFoundError) {
+		if _, ok := errors.AsType[*dynamodbtypes.ResourceNotFoundException](err); ok {
 			return fmt.Errorf("table %s does not exist", c.tableName)
 		}
 		return fmt.Errorf("failed to describe table %s: %w", c.tableName, err)

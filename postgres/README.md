@@ -15,7 +15,7 @@ Part of the [slackmgr/plugins](https://github.com/slackmgr/plugins) monorepo. Ve
 go get github.com/slackmgr/plugins/postgres
 ```
 
-Requires Go 1.25+ and PostgreSQL 13+.
+Requires Go 1.26+ and PostgreSQL 13+.
 
 ## Usage
 
