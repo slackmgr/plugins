@@ -19,6 +19,18 @@ const (
 	AlertModelVersion                  = 2
 	MoveMappingModelVersion            = 2
 	ChannelProcessingStateModelVersion = 2
+
+	// InsightsEventModelVersion is the value stored in the version column of every insights event row.
+	InsightsEventModelVersion = 1
+)
+
+const (
+	// maxInsightsTableNameLen is the maximum length of the insights events table name. Partition names
+	// (<table>_pYYYYMMDD) and index names must fit in PostgreSQL's 63 character identifier limit.
+	maxInsightsTableNameLen = 40
+
+	// minInsightsRetention is the minimum insights retention. Retention has day granularity.
+	minInsightsRetention = 24 * time.Hour
 )
 
 // SSLMode represents PostgreSQL SSL connection modes.
@@ -63,6 +75,22 @@ type options struct {
 	ttlCleanupInterval              *time.Duration
 	ttlCleanupBatchSize             int
 	ttlCleanupBatchPause            time.Duration
+	insightsEnabled                 bool
+	insightsEventsTable             string
+	insightsRetention               time.Duration
+	insightsPoolMaxConnections      int32
+	insightsStatementTimeout        time.Duration
+	insightsReadStatementTimeout    time.Duration
+	nowFn                           func() time.Time // test hook, defaults to time.Now
+}
+
+// now returns the current time, using the injectable clock if set.
+func (o *options) now() time.Time {
+	if o.nowFn != nil {
+		return o.nowFn()
+	}
+
+	return time.Now()
 }
 
 func newOptions() *options {
@@ -82,6 +110,12 @@ func newOptions() *options {
 		ttlCleanupInterval:          &defaultCleanupInterval,
 		ttlCleanupBatchSize:         5000,
 		ttlCleanupBatchPause:        defaultTTLCleanupBatchPause,
+
+		insightsEventsTable:          "insights_events",
+		insightsRetention:            30 * 24 * time.Hour,
+		insightsPoolMaxConnections:   2,
+		insightsStatementTimeout:     5 * time.Second,
+		insightsReadStatementTimeout: 15 * time.Second,
 	}
 }
 
@@ -212,6 +246,46 @@ func WithTTLCleanupBatchSize(n int) Option {
 	return func(o *options) { o.ttlCleanupBatchSize = n }
 }
 
+// WithInsightsEnabled enables recording of insights events. It is opt-in: when set, [Client.Connect] opens a
+// second, small connection pool dedicated to insights, [Client.InsightsSink] and [Client.InsightsReader] return
+// non-nil values, and [Client.Init] creates and drops daily partitions of the insights events table (once on
+// Init, then hourly until [Client.Close]). The insights table itself is always created by the schema migrations.
+func WithInsightsEnabled() Option {
+	return func(o *options) { o.insightsEnabled = true }
+}
+
+// WithInsightsEventsTable sets the name of the partitioned insights events table. Defaults to "insights_events".
+// The name must be a valid identifier of at most 40 characters, so that partition and index names fit in
+// PostgreSQL's 63 character limit.
+func WithInsightsEventsTable(name string) Option {
+	return func(o *options) { o.insightsEventsTable = name }
+}
+
+// WithInsightsRetention sets how long insights events are kept. Retention is enforced by dropping whole daily
+// partitions, so it has day granularity: a partition is dropped when its whole day is older than the retention.
+// Defaults to 30 days. The duration must be at least 24 hours.
+func WithInsightsRetention(d time.Duration) Option {
+	return func(o *options) { o.insightsRetention = d }
+}
+
+// WithInsightsPoolMaxConnections sets the maximum number of connections in the insights pool (the writer pool of
+// [Client], or the pool of [InsightsReader]). Defaults to 2. The value must be at least 1.
+func WithInsightsPoolMaxConnections(n int32) Option {
+	return func(o *options) { o.insightsPoolMaxConnections = n }
+}
+
+// WithInsightsStatementTimeout sets the server-side statement_timeout of the insights writer pool of [Client].
+// Defaults to 5 seconds. The duration must be greater than zero.
+func WithInsightsStatementTimeout(d time.Duration) Option {
+	return func(o *options) { o.insightsStatementTimeout = d }
+}
+
+// WithInsightsReadStatementTimeout sets the server-side statement_timeout of the pool used by [InsightsReader].
+// Defaults to 15 seconds. The duration must be greater than zero.
+func WithInsightsReadStatementTimeout(d time.Duration) Option {
+	return func(o *options) { o.insightsReadStatementTimeout = d }
+}
+
 // migration holds a versioned set of SQL statements that are applied once and
 // recorded in the schema_migrations table.
 type migration struct {
@@ -258,6 +332,30 @@ func (o *options) validate() error {
 
 	if err := validateTableName(o.schemaMigrationsTable); err != nil {
 		return fmt.Errorf("invalid schema migrations table name: %w", err)
+	}
+
+	if err := validateTableName(o.insightsEventsTable); err != nil {
+		return fmt.Errorf("invalid insights events table name: %w", err)
+	}
+
+	if len(o.insightsEventsTable) > maxInsightsTableNameLen {
+		return fmt.Errorf("insights events table name %q is too long: %d characters (max %d)", o.insightsEventsTable, len(o.insightsEventsTable), maxInsightsTableNameLen)
+	}
+
+	if o.insightsRetention < minInsightsRetention {
+		return fmt.Errorf("insights retention must be at least %s", minInsightsRetention)
+	}
+
+	if o.insightsPoolMaxConnections < 1 {
+		return errors.New("insights pool max connections must be at least 1")
+	}
+
+	if o.insightsStatementTimeout <= 0 {
+		return errors.New("insights statement timeout must be greater than zero")
+	}
+
+	if o.insightsReadStatementTimeout <= 0 {
+		return errors.New("insights read statement timeout must be greater than zero")
 	}
 
 	if o.alertsTimeToLive <= 0 {
@@ -366,6 +464,17 @@ func (o *options) migrations() []migration {
 				fmt.Sprintf(`ALTER TABLE %s ADD COLUMN IF NOT EXISTS open_issues INTEGER NOT NULL DEFAULT 0;`, o.channelProcessingStateTable),
 			},
 		},
+		{
+			version: 4,
+			stmts: []string{
+				// Insights events table, partitioned by day on occurred_at. Always created (even when insights is
+				// disabled) so that the migration sequence stays linear. Partitions are managed by the writer client.
+				fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id BIGINT GENERATED ALWAYS AS IDENTITY, version SMALLINT NOT NULL, occurred_at TIMESTAMPTZ NOT NULL, type TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', channel_id TEXT NOT NULL DEFAULT '', related_channel_id TEXT NOT NULL DEFAULT '', issue_id TEXT NOT NULL DEFAULT '', correlation_id TEXT NOT NULL DEFAULT '', severity TEXT NOT NULL DEFAULT '', route_key TEXT NOT NULL DEFAULT '', actor_id TEXT NOT NULL DEFAULT '', attrs JSONB NULL) PARTITION BY RANGE (occurred_at);`, o.insightsEventsTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_time_brin ON %s USING BRIN (occurred_at);`, o.insightsEventsTable, o.insightsEventsTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_chan_type_time_idx ON %s (channel_id, type, occurred_at);`, o.insightsEventsTable, o.insightsEventsTable),
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_issue_time_idx ON %s (issue_id, occurred_at) WHERE issue_id <> '';`, o.insightsEventsTable, o.insightsEventsTable),
+			},
+		},
 	}
 }
 
@@ -375,6 +484,7 @@ func (o *options) dropStatements() []string {
 		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.alertsTable),
 		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.moveMappingsTable),
 		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.channelProcessingStateTable),
+		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.insightsEventsTable), // also drops all partitions
 		fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE;", o.schemaMigrationsTable),
 	}
 }

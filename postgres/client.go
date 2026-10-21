@@ -25,18 +25,31 @@ type pool interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
 	Close()
 	Ping(ctx context.Context) error
 }
 
+// Client is a PostgreSQL implementation of [types.DB]. When created with [WithInsightsEnabled] it is also a
+// [types.InsightsSink] and provides a [types.InsightsReader] (see [Client.InsightsSink] and [Client.InsightsReader]).
 type Client struct {
-	conn      pool
-	opts      *options
-	logger    types.Logger
-	mu        sync.Mutex     // guards cancelTTL during Init/Close
-	ttlWg     sync.WaitGroup // tracks the TTL goroutine for graceful drain
-	cancelTTL context.CancelFunc
+	conn          pool
+	insightsConn  pool // dedicated pool for insights, nil unless insights is enabled and connected
+	opts          *options
+	logger        types.Logger
+	mu            sync.Mutex     // guards cancelTTL and cancelInsights during Init/Close
+	ttlWg         sync.WaitGroup // tracks the TTL goroutine for graceful drain
+	cancelTTL     context.CancelFunc
+	insightsWg    sync.WaitGroup // tracks the insights partition maintenance goroutine
+	cancelInsight context.CancelFunc
 }
+
+var (
+	_ types.DB                     = (*Client)(nil)
+	_ types.InsightsSink           = (*Client)(nil)
+	_ types.InsightsSinkProvider   = (*Client)(nil)
+	_ types.InsightsReaderProvider = (*Client)(nil)
+)
 
 func New(logger types.Logger, opts ...Option) *Client {
 	o := newOptions()
@@ -50,10 +63,15 @@ func New(logger types.Logger, opts ...Option) *Client {
 }
 
 func (c *Client) Connect(ctx context.Context) error {
-	// Close existing connection if any to prevent leaks
+	// Close existing connections if any to prevent leaks
 	if c.conn != nil {
 		c.conn.Close()
 		c.conn = nil
+	}
+
+	if c.insightsConn != nil {
+		c.insightsConn.Close()
+		c.insightsConn = nil
 	}
 
 	if err := c.opts.validate(); err != nil {
@@ -103,6 +121,16 @@ func (c *Client) Connect(ctx context.Context) error {
 		return fmt.Errorf("failed to ping Postgres db: %w", err)
 	}
 
+	if c.opts.insightsEnabled {
+		insightsConn, err := c.connectInsights(ctx)
+		if err != nil {
+			conn.Close()
+			return err
+		}
+
+		c.insightsConn = insightsConn
+	}
+
 	c.conn = conn
 
 	return nil
@@ -114,9 +142,21 @@ func (c *Client) Close(_ context.Context) error {
 		c.cancelTTL()
 		c.cancelTTL = nil
 	}
+
+	if c.cancelInsight != nil {
+		c.cancelInsight()
+		c.cancelInsight = nil
+	}
 	c.mu.Unlock()
 
-	c.ttlWg.Wait() // drain any in-flight Exec before tearing down the pool
+	// Drain any in-flight statements before tearing down the pools.
+	c.ttlWg.Wait()
+	c.insightsWg.Wait()
+
+	if c.insightsConn != nil {
+		c.insightsConn.Close()
+		c.insightsConn = nil
+	}
 
 	if c.conn == nil {
 		return nil
@@ -152,6 +192,10 @@ func (c *Client) Init(ctx context.Context, _ bool) error {
 		go c.runTTLCleanup(ttlCtx)
 	}
 	c.mu.Unlock()
+
+	if c.opts.insightsEnabled {
+		c.startInsightsMaintenance(ctx)
+	}
 
 	return nil
 }

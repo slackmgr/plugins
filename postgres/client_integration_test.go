@@ -15,6 +15,8 @@ import (
 
 var client *postgres.Client
 
+const integrationInsightsTable = "__insights_events_integration_test"
+
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 	c := postgres.New(
@@ -31,6 +33,8 @@ func TestMain(m *testing.M) {
 		postgres.WithChannelProcessingStateTable("__channel_processing_state_integration_test"),
 		postgres.WithSchemaMigrationsTable("__schema_migrations_integration_test"),
 		postgres.WithTTLCleanupDisabled(),
+		postgres.WithInsightsEnabled(),
+		postgres.WithInsightsEventsTable(integrationInsightsTable),
 	)
 
 	// Verify that the client implements the types.DB interface

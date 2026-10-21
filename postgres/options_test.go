@@ -492,14 +492,16 @@ func TestDropStatements(t *testing.T) {
 		postgres.WithMoveMappingsTable("test_move_mappings"),
 		postgres.WithChannelProcessingStateTable("test_channel_state"),
 		postgres.WithSchemaMigrationsTable("test_schema_migrations"),
+		postgres.WithInsightsEventsTable("test_insights_events"),
 	)
 
-	require.Len(t, statements, 5)
+	require.Len(t, statements, 6)
 	assert.Equal(t, "DROP TABLE IF EXISTS test_issues CASCADE;", statements[0])
 	assert.Equal(t, "DROP TABLE IF EXISTS test_alerts CASCADE;", statements[1])
 	assert.Equal(t, "DROP TABLE IF EXISTS test_move_mappings CASCADE;", statements[2])
 	assert.Equal(t, "DROP TABLE IF EXISTS test_channel_state CASCADE;", statements[3])
-	assert.Equal(t, "DROP TABLE IF EXISTS test_schema_migrations CASCADE;", statements[4])
+	assert.Equal(t, "DROP TABLE IF EXISTS test_insights_events CASCADE;", statements[4])
+	assert.Equal(t, "DROP TABLE IF EXISTS test_schema_migrations CASCADE;", statements[5])
 }
 
 func TestModelVersionConstants(t *testing.T) {

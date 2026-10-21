@@ -29,13 +29,15 @@
 //
 // # Database Tables
 //
-// Four tables are created automatically by [Client.Init] (table names are
+// Six tables are created automatically by [Client.Init] (table names are
 // configurable via the corresponding With* options):
 //
 //   - issues — Slack issues with correlation IDs, open/closed state, and TTL
 //   - alerts — Alert records with TTL
 //   - move_mappings — Issue move tracking between channels
 //   - channel_processing_state — Per-channel processing timestamps
+//   - schema_migrations — Applied schema migrations
+//   - insights_events — Insights events, partitioned by day (see Insights)
 //
 // Each table includes a version column and an attrs JSONB column that holds
 // the full serialised entity.
@@ -57,6 +59,14 @@
 // A background goroutine periodically deletes expired rows. Its interval
 // defaults to 1 hour and can be changed with [WithTTLCleanupInterval] or
 // disabled entirely with [WithTTLCleanupDisabled].
+//
+// # Insights
+//
+// With [WithInsightsEnabled] the [Client] implements [types.InsightsSinkProvider]
+// and [types.InsightsReaderProvider], using a dedicated connection pool and
+// daily partitions that are created and dropped automatically (see
+// [WithInsightsRetention]). Read-only consumers use [NewInsightsReader], which
+// needs only SELECT privileges and never runs DDL.
 //
 // # Schema Validation
 //

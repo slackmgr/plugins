@@ -219,7 +219,7 @@ func expectMigrations(mock pgxmock.PgxPoolIface) {
 	mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
 
 	// Number of statements in each migration, in order.
-	for _, stmtCount := range []int{10, 3, 2} {
+	for _, stmtCount := range []int{10, 3, 2, 4} {
 		expectMigration(mock, stmtCount)
 	}
 }
