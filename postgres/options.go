@@ -61,6 +61,8 @@ type options struct {
 	alertsTimeToLive                time.Duration
 	issuesTimeToLive                time.Duration
 	ttlCleanupInterval              *time.Duration
+	ttlCleanupBatchSize             int
+	ttlCleanupBatchPause            time.Duration
 }
 
 func newOptions() *options {
@@ -78,6 +80,8 @@ func newOptions() *options {
 		alertsTimeToLive:            30 * 24 * time.Hour,
 		issuesTimeToLive:            180 * 24 * time.Hour,
 		ttlCleanupInterval:          &defaultCleanupInterval,
+		ttlCleanupBatchSize:         5000,
+		ttlCleanupBatchPause:        defaultTTLCleanupBatchPause,
 	}
 }
 
@@ -200,6 +204,14 @@ func WithTTLCleanupDisabled() Option {
 	return func(o *options) { o.ttlCleanupInterval = nil }
 }
 
+// WithTTLCleanupBatchSize sets the maximum number of expired rows deleted per
+// statement by the background TTL cleanup. Expired rows are deleted in batches of
+// this size, each in its own short transaction, until none remain. Defaults to
+// 5000. The value must be greater than zero.
+func WithTTLCleanupBatchSize(n int) Option {
+	return func(o *options) { o.ttlCleanupBatchSize = n }
+}
+
 // migration holds a versioned set of SQL statements that are applied once and
 // recorded in the schema_migrations table.
 type migration struct {
@@ -258,6 +270,10 @@ func (o *options) validate() error {
 
 	if o.ttlCleanupInterval != nil && *o.ttlCleanupInterval <= 0 {
 		return errors.New("TTL cleanup interval must be positive")
+	}
+
+	if o.ttlCleanupBatchSize <= 0 {
+		return errors.New("TTL cleanup batch size must be greater than zero")
 	}
 
 	return nil

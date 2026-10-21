@@ -194,6 +194,23 @@ func TestValidate(t *testing.T) {
 			wantErr: "TTL cleanup interval must be positive",
 		},
 		{
+			name: "returns error for zero TTL cleanup batch size",
+			opts: []postgres.Option{
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithTTLCleanupBatchSize(0),
+			},
+			wantErr: "TTL cleanup batch size must be greater than zero",
+		},
+		{
+			name: "valid custom TTL cleanup batch size",
+			opts: []postgres.Option{
+				postgres.WithUser("testuser"),
+				postgres.WithDatabase("testdb"),
+				postgres.WithTTLCleanupBatchSize(100),
+			},
+		},
+		{
 			name: "disabled TTL cleanup is valid",
 			opts: []postgres.Option{
 				postgres.WithUser("testuser"),

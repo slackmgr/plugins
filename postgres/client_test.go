@@ -1342,3 +1342,79 @@ func TestFindChannelProcessingState_Validation(t *testing.T) {
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
 }
+
+// =============================================================================
+// TTL cleanup Tests
+// =============================================================================
+
+//nolint:ireturn // Returning interface is appropriate for test mock helper
+func newClientWithMockAndBatchSize(t *testing.T, batchSize int) (*postgres.Client, pgxmock.PgxPoolIface) {
+	t.Helper()
+
+	mock, err := pgxmock.NewPool()
+	require.NoError(t, err)
+
+	client := postgres.New(
+		&types.NoopLogger{},
+		postgres.WithUser("testuser"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithTTLCleanupBatchSize(batchSize),
+	)
+	client.SetPool(mock)
+	client.SetTTLCleanupBatchPause(time.Millisecond)
+
+	return client, mock
+}
+
+func TestDeleteExpiredRows(t *testing.T) {
+	t.Parallel()
+
+	t.Run("deletes in batches until a partial batch is returned", func(t *testing.T) {
+		t.Parallel()
+
+		client, mock := newClientWithMockAndBatchSize(t, 10)
+
+		mock.ExpectExec(`DELETE FROM alerts WHERE id IN \(SELECT id FROM alerts WHERE expires_at IS NOT NULL AND expires_at < NOW\(\) LIMIT \$1 FOR UPDATE SKIP LOCKED\)`).
+			WithArgs(10).WillReturnResult(pgxmock.NewResult("DELETE", 10))
+		mock.ExpectExec("DELETE FROM alerts").WithArgs(10).WillReturnResult(pgxmock.NewResult("DELETE", 10))
+		mock.ExpectExec("DELETE FROM alerts").WithArgs(10).WillReturnResult(pgxmock.NewResult("DELETE", 3))
+		mock.ExpectExec("DELETE FROM issues").WithArgs(10).WillReturnResult(pgxmock.NewResult("DELETE", 0))
+
+		client.DeleteExpiredRows(context.Background())
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("error in one table does not prevent cleanup of the other", func(t *testing.T) {
+		t.Parallel()
+
+		client, mock := newClientWithMockAndBatchSize(t, 10)
+
+		mock.ExpectExec("DELETE FROM alerts").WithArgs(10).WillReturnError(errors.New("boom"))
+		mock.ExpectExec("DELETE FROM issues").WithArgs(10).WillReturnResult(pgxmock.NewResult("DELETE", 2))
+
+		client.DeleteExpiredRows(context.Background())
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("stops between batches when the context is cancelled", func(t *testing.T) {
+		t.Parallel()
+
+		client, mock := newClientWithMockAndBatchSize(t, 10)
+		client.SetTTLCleanupBatchPause(time.Hour)
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		mock.ExpectExec("DELETE FROM alerts").WithArgs(10).WillReturnResult(pgxmock.NewResult("DELETE", 10))
+
+		go func() {
+			time.Sleep(20 * time.Millisecond)
+			cancel()
+		}()
+
+		client.DeleteExpiredRows(ctx)
+
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+}

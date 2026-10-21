@@ -1,5 +1,10 @@
 package postgres
 
+import (
+	"context"
+	"time"
+)
+
 // Export internal symbols for testing.
 // This file is only compiled during testing.
 
@@ -58,4 +63,14 @@ func (c *Client) HasActiveTTLCleanup() bool {
 	defer c.mu.Unlock()
 
 	return c.cancelTTL != nil
+}
+
+// DeleteExpiredRows runs a single TTL cleanup pass.
+func (c *Client) DeleteExpiredRows(ctx context.Context) {
+	c.deleteExpiredRows(ctx)
+}
+
+// SetTTLCleanupBatchPause overrides the pause between delete batches.
+func (c *Client) SetTTLCleanupBatchPause(d time.Duration) {
+	c.opts.ttlCleanupBatchPause = d
 }

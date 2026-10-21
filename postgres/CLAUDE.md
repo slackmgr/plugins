@@ -51,7 +51,7 @@ All data tables include a `version` column and an `attrs` JSONB column for the s
 
 **Adding a future migration:** append a new `migration{version: N, stmts: [...]}` entry to `migrations()` in `options.go`. Migrations are applied in order, each exactly once, under a `pg_advisory_xact_lock`.
 
-**TTL:** Closed issues expire after 180 days; alerts after 30 days (both configurable). A background goroutine (started by `Init`, stopped by `Close`) deletes expired rows on a configurable interval (default 1 hour). Expired records are excluded from reads regardless of whether the cleanup goroutine runs.
+**TTL:** Closed issues expire after 180 days; alerts after 30 days (both configurable). A background goroutine (started by `Init`, stopped by `Close`) deletes expired rows on a configurable interval (default 1 hour), in batches (`WithTTLCleanupBatchSize`, default 5000) using `FOR UPDATE SKIP LOCKED` so multiple instances don't block each other. Expired records are excluded from reads regardless of whether the cleanup goroutine runs.
 
 ## Dependencies
 

@@ -68,6 +68,7 @@ All options are provided via `With*` constructor functions. Only `WithUser` and 
 | `WithAlertsTimeToLive(time.Duration)` | `30 days` | TTL applied to alert records. Must be greater than zero. |
 | `WithIssuesTimeToLive(time.Duration)` | `180 days` | TTL applied to closed issue records. Open issues never expire. Must be greater than zero. |
 | `WithTTLCleanupInterval(time.Duration)` | `1h` | How often the background goroutine physically deletes expired rows. Must be greater than zero. |
+| `WithTTLCleanupBatchSize(int)` | `5000` | Maximum expired rows deleted per statement. Cleanup runs in batches, each its own short transaction, until no expired rows remain. Must be greater than zero. |
 | `WithTTLCleanupDisabled()` | — | Disables the background TTL cleanup goroutine. Expired rows are excluded from reads but never physically deleted. |
 | `WithPoolMaxConnections(int32)` | pgx default | Max pool connections |
 | `WithPoolMinConnections(int32)` | pgx default | Min pool connections |

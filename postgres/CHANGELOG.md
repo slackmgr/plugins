@@ -18,6 +18,11 @@ For history prior to this monorepo migration, see the
 - Persist the full channel processing state. `SaveChannelProcessingState` and `FindChannelProcessingState` previously ignored `OpenIssues` and `LastChannelActivity`, so `OpenIssues` always read back as 0 on a database cache miss. This disabled alert-driven Slack throttling and could pause issue processing in multi-instance deployments. Schema migration 3 adds the `open_issues` and `last_channel_activity` columns
 - `FindChannelProcessingState` returns timestamps in UTC
 - Integration tests now run the full shared `dbtests` suite
+- Background TTL cleanup deletes expired rows in bounded batches (each its own short transaction, 30s statement deadline, 10 minute run deadline) instead of one unbounded `DELETE` per table. Batches use `FOR UPDATE SKIP LOCKED`, so concurrent cleanup runs from multiple instances no longer block each other
+
+### Added
+
+- `WithTTLCleanupBatchSize(int)` option (default 5000)
 
 ## [0.6.0] - 2026-10-21
 

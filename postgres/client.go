@@ -740,16 +740,67 @@ func (c *Client) runTTLCleanup(ctx context.Context) {
 	}
 }
 
+const (
+	// defaultTTLCleanupBatchPause is the pause between consecutive delete batches, giving
+	// other workloads room on the database while a large backlog is being removed.
+	defaultTTLCleanupBatchPause = 50 * time.Millisecond
+
+	// ttlCleanupStatementTimeout bounds the duration of a single delete batch.
+	ttlCleanupStatementTimeout = 30 * time.Second
+
+	// ttlCleanupMaxRunDuration bounds the total duration of a single cleanup run.
+	// Remaining expired rows are deleted in the next run.
+	ttlCleanupMaxRunDuration = 10 * time.Minute
+)
+
+// deleteExpiredRows deletes expired alerts and issues in bounded batches.
+// Each batch is a separate short transaction, so a large backlog never produces a
+// single long-running delete. Rows are selected with FOR UPDATE SKIP LOCKED, so
+// concurrent cleanup runs from multiple instances work on disjoint rows instead of
+// blocking each other.
 func (c *Client) deleteExpiredRows(ctx context.Context) {
-	if _, err := c.conn.Exec(ctx, fmt.Sprintf(
-		"DELETE FROM %s WHERE expires_at IS NOT NULL AND expires_at < NOW()", c.opts.alertsTable,
-	)); err != nil {
-		c.logger.Errorf("failed to delete expired alerts: %v", err)
+	ctx, cancel := context.WithTimeout(ctx, ttlCleanupMaxRunDuration)
+	defer cancel()
+
+	if n, err := c.deleteExpiredRowsInTable(ctx, c.opts.alertsTable); err != nil {
+		c.logger.Errorf("failed to delete expired alerts (%d deleted before the error): %v", n, err)
 	}
 
-	if _, err := c.conn.Exec(ctx, fmt.Sprintf(
-		"DELETE FROM %s WHERE expires_at IS NOT NULL AND expires_at < NOW()", c.opts.issuesTable,
-	)); err != nil {
-		c.logger.Errorf("failed to delete expired issues: %v", err)
+	if n, err := c.deleteExpiredRowsInTable(ctx, c.opts.issuesTable); err != nil {
+		c.logger.Errorf("failed to delete expired issues (%d deleted before the error): %v", n, err)
+	}
+}
+
+// deleteExpiredRowsInTable deletes expired rows from a single table in batches,
+// until no expired rows remain or the context is done. It returns the number of deleted rows.
+func (c *Client) deleteExpiredRowsInTable(ctx context.Context, table string) (int64, error) {
+	sql := fmt.Sprintf(
+		"DELETE FROM %s WHERE id IN (SELECT id FROM %s WHERE expires_at IS NOT NULL AND expires_at < NOW() LIMIT $1 FOR UPDATE SKIP LOCKED)",
+		table, table,
+	)
+
+	batchSize := c.opts.ttlCleanupBatchSize
+	var total int64
+
+	for {
+		batchCtx, cancel := context.WithTimeout(ctx, ttlCleanupStatementTimeout)
+		tag, err := c.conn.Exec(batchCtx, sql, batchSize)
+		cancel()
+
+		if err != nil {
+			return total, err
+		}
+
+		total += tag.RowsAffected()
+
+		if tag.RowsAffected() < int64(batchSize) {
+			return total, nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return total, nil
+		case <-time.After(c.opts.ttlCleanupBatchPause):
+		}
 	}
 }
