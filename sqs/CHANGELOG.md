@@ -13,6 +13,8 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
 ### Changed
 
 - Minimum Go version is now 1.26
@@ -81,7 +83,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 - Renamed shared types dependency from `github.com/slackmgr/slack-manager-common` to `github.com/slackmgr/types` (v0.3.0); all public API references updated accordingly
 - Module path updated from `github.com/slackmgr/slack-manager-sqs-plugin` to `github.com/slackmgr/plugins/sqs`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.7...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/sqs/v0.3.0...HEAD
+[0.3.0]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.7...sqs/v0.3.0
 [0.2.7]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.6...sqs/v0.2.7
 [0.2.6]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.5...sqs/v0.2.6
 [0.2.5]: https://github.com/slackmgr/plugins/compare/sqs/v0.2.4...sqs/v0.2.5
