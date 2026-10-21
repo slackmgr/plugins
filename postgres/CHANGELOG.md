@@ -13,6 +13,8 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-21
+
 ### Fixed
 
 - Persist the full channel processing state. `SaveChannelProcessingState` and `FindChannelProcessingState` previously ignored `OpenIssues` and `LastChannelActivity`, so `OpenIssues` always read back as 0 on a database cache miss. This disabled alert-driven Slack throttling and could pause issue processing in multi-instance deployments. Schema migration 3 adds the `open_issues` and `last_channel_activity` columns
@@ -138,7 +140,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-postgres-plugin` to `github.com/slackmgr/plugins/postgres`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.6.0...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.7.0...HEAD
+[0.7.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.6.0...postgres/v0.7.0
 [0.6.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.5...postgres/v0.6.0
 [0.5.5]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.4...postgres/v0.5.5
 [0.5.4]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.3...postgres/v0.5.4
