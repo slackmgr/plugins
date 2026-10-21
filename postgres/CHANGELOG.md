@@ -23,6 +23,17 @@ For history prior to this monorepo migration, see the
 ### Added
 
 - `WithTTLCleanupBatchSize(int)` option (default 5000)
+- Insights support (requires `github.com/slackmgr/types` v0.8.0):
+  - Schema migration 4 creates the `insights_events` table, partitioned by day on `occurred_at` (always created, empty unless insights is enabled). `DropAllData` also drops it
+  - `WithInsightsEnabled()` (opt-in) opens a dedicated, small pool (`statement_timeout`, `lock_timeout=1s`, `synchronous_commit=off`) and enables `Client.InsightsSink()` (`types.InsightsSinkProvider`, batch writes with `COPY`) and `Client.InsightsReader()` (`types.InsightsReaderProvider`)
+  - Partition maintenance: `Init` and then an hourly background goroutine (stopped by `Close`) pre-create daily partitions (yesterday to today + 3) and drop partitions older than the retention, guarded by an advisory lock. Errors are logged and never fail `Init`
+  - `NewInsightsReader` / `InsightsReader`: standalone read-only `types.InsightsReader` (`default_transaction_read_only=on`, never runs migrations or DDL) with `CheckSchema`. Needs `SELECT` on the issues, insights and migrations tables only
+  - Options `WithInsightsEventsTable`, `WithInsightsRetention`, `WithInsightsPoolMaxConnections`, `WithInsightsStatementTimeout`, `WithInsightsReadStatementTimeout`
+  - `InsightsEventModelVersion` constant
+
+### Changed
+
+- The internal `pool` interface gained `CopyFrom`
 
 ## [0.6.0] - 2026-10-21
 

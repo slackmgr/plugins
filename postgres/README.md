@@ -43,7 +43,7 @@ if err := client.Init(ctx, false); err != nil {
 }
 ```
 
-`Init` runs any pending schema migrations, then starts the background TTL cleanup goroutine. It is idempotent — calling it multiple times on the same `Client` is safe.
+`Init` runs any pending schema migrations, then starts the background TTL cleanup goroutine (and, if insights is enabled, the insights partition maintenance, see [Insights](#insights)). It is idempotent — calling it multiple times on the same `Client` is safe.
 
 ## Configuration
 
@@ -70,6 +70,12 @@ All options are provided via `With*` constructor functions. Only `WithUser` and 
 | `WithTTLCleanupInterval(time.Duration)` | `1h` | How often the background goroutine physically deletes expired rows. Must be greater than zero. |
 | `WithTTLCleanupBatchSize(int)` | `5000` | Maximum expired rows deleted per statement. Cleanup runs in batches, each its own short transaction, until no expired rows remain. Must be greater than zero. |
 | `WithTTLCleanupDisabled()` | — | Disables the background TTL cleanup goroutine. Expired rows are excluded from reads but never physically deleted. |
+| `WithInsightsEnabled()` | disabled | Enables the insights sink, the dedicated insights pool and partition maintenance on `Client`. See [Insights](#insights). |
+| `WithInsightsEventsTable(string)` | `"insights_events"` | Insights events table name. Valid identifier, at most 40 characters (partition and index names must fit in 63). |
+| `WithInsightsRetention(time.Duration)` | `30 days` | How long insights events are kept (day granularity, enforced by dropping partitions). Must be at least 24h. |
+| `WithInsightsPoolMaxConnections(int32)` | `2` | Max connections of the insights pool (writer pool of `Client`, or the pool of `InsightsReader`). Must be at least 1. |
+| `WithInsightsStatementTimeout(time.Duration)` | `5s` | `statement_timeout` of the insights writer pool. Must be greater than zero. |
+| `WithInsightsReadStatementTimeout(time.Duration)` | `15s` | `statement_timeout` of the `InsightsReader` pool. Must be greater than zero. |
 | `WithPoolMaxConnections(int32)` | pgx default | Max pool connections |
 | `WithPoolMinConnections(int32)` | pgx default | Min pool connections |
 | `WithPoolMinIdleConnections(int32)` | pgx default | Min idle connections |
@@ -147,15 +153,18 @@ client := postgres.New(
 
 `Init` manages schema creation and evolution automatically using a migrations table. On startup it runs any migrations that have not yet been applied and records them in a `schema_migrations` table. Migrations are applied atomically under a PostgreSQL advisory lock, so it is safe to call `Init` concurrently from multiple instances.
 
-Five tables are created on first `Init`:
+Six tables are created on first `Init`:
 
 - **`issues`** — Slack issues with correlation IDs and open/closed state
 - **`alerts`** — Alert records
 - **`move_mappings`** — Issue move tracking between channels
 - **`channel_processing_state`** — Per-channel processing state (timestamps, last activity, open issue count)
+- **`insights_events`** — Insights events, range-partitioned by day on `occurred_at` (migration 4). Always created, but empty unless insights is enabled. Daily partitions are named `<table>_pYYYYMMDD`.
 - **`schema_migrations`** — Migration tracking (version + applied timestamp)
 
-All data tables include a `version` column for data-format versioning and an `attrs` JSONB column for flexible storage. The `issues` and `alerts` tables additionally include an `expires_at` column used for TTL.
+All data tables include a `version` column for data-format versioning and an `attrs` JSONB column for flexible storage (nullable in `insights_events`). The `issues` and `alerts` tables additionally include an `expires_at` column used for TTL.
+
+`DropAllData` also drops the insights table and all its partitions.
 
 Use `WithSchemaMigrationsTable` to customise the migrations table name (useful when running multiple instances in the same database):
 
@@ -166,6 +175,86 @@ client := postgres.New(
     postgres.WithSchemaMigrationsTable("myapp_schema_migrations"),
 )
 ```
+
+## Insights
+
+Insights records structured events (alert outcomes, issue lifecycle, commands, Slack posts, ...) for dashboards and reporting. It requires `github.com/slackmgr/types` v0.8.0 or later. It is opt-in and isolated from the regular alert and issue storage.
+
+### Writing events
+
+```go
+client := postgres.New(logger,
+    postgres.WithUser("myuser"),
+    postgres.WithDatabase("mydb"),
+    postgres.WithInsightsEnabled(),
+    postgres.WithInsightsRetention(30 * 24 * time.Hour),
+)
+```
+
+With `WithInsightsEnabled`:
+
+- `Connect` opens a second, small pool (default 2 connections) used only for insights, with `statement_timeout` (default 5s), `lock_timeout=1s`, `synchronous_commit=off` and `application_name=slackmgr-insights`. The main pool is never used for insights.
+- `InsightsSink()` returns a `types.InsightsSink` (the client implements `types.InsightsSinkProvider`). `WriteInsightsEvents` writes a batch with a single `COPY`, outside any issue or alert transaction. Events are best-effort: an error loses the batch.
+- `InsightsReader()` returns a `types.InsightsReader` over the insights pool (the client implements `types.InsightsReaderProvider`). Both return `nil` when insights is disabled.
+
+Without `WithInsightsEnabled` the client opens no extra pool, and both providers return `nil`.
+
+### Partitions and retention
+
+The events table is partitioned by day (UTC). There is no default partition, so a missing partition makes the `COPY` fail (the batch is lost) — the maintenance below prevents that.
+
+When insights is enabled, `Init` runs partition maintenance once, then a background goroutine repeats it hourly until `Close`. Maintenance errors are logged and never fail `Init`. Each step runs in its own transaction on the insights pool, under a `pg_try_advisory_xact_lock`, so only one instance at a time does the work (others skip), with `lock_timeout = 2s`:
+
+1. **Create** the partitions for yesterday through today + 3 days (`CREATE TABLE IF NOT EXISTS <table>_pYYYYMMDD PARTITION OF <table> ...`).
+2. **Drop** partitions whose whole day is older than the retention (`WithInsightsRetention`, default 30 days, minimum 24h). Only tables named `<table>_pYYYYMMDD` are considered. Dropping a partition is O(1) and creates no bloat. If a long-running reader blocks the drop, it is retried an hour later.
+
+Creating a partition for a new day briefly takes an `ACCESS EXCLUSIVE` lock on the parent table (once per day, because partitions are pre-created). Existing partitions take no lock.
+
+The writer user must own the events table (it runs the DDL). Because retention is day-granular, up to one extra day of events can remain beyond the configured retention.
+
+### Event storage (`attrs`)
+
+Frequently filtered fields are columns (`type`, `reason`, `channel_id`, `related_channel_id`, `issue_id`, `correlation_id`, `severity`, `route_key`, `actor_id`). The rest is stored in the nullable `attrs` JSONB column, with the keys `prevSeverity`, `alertType`, `host`, `author`, `actorName`, `count`, `detail` and `values` (an object of numbers). `attrs` is `NULL` when all of them are empty. The row `version` is `InsightsEventModelVersion`.
+
+### Read-only access
+
+Dashboards and other read-only consumers should use `InsightsReader`, not `Client`. **Do not call `Client.Init` with a read-only user**: it runs DDL (`CREATE TABLE IF NOT EXISTS ...`) and fails.
+
+```go
+reader := postgres.NewInsightsReader(logger,
+    postgres.WithHost("db"),
+    postgres.WithUser("insights_reader"),
+    postgres.WithPassword("..."),
+    postgres.WithDatabase("mydb"),
+)
+
+if err := reader.Connect(ctx); err != nil {
+    log.Fatal(err)
+}
+defer reader.Close()
+
+if err := reader.CheckSchema(ctx); err != nil {
+    log.Fatal(err) // schema not initialised by a privileged user
+}
+
+rows, err := reader.CountInsightsEvents(ctx, &types.InsightsCountQuery{...})
+```
+
+`NewInsightsReader` accepts the same options as `New`; the connection options, table names (`WithIssuesTable`, `WithSchemaMigrationsTable`, `WithInsightsEventsTable`), `WithInsightsPoolMaxConnections` and `WithInsightsReadStatementTimeout` (default 15s) are used. It:
+
+- opens a single pool with `default_transaction_read_only=on` (writes are rejected by the server),
+- never runs migrations or DDL and never starts goroutines,
+- provides `CheckSchema`, which reads `MAX(version)` from the migrations table and fails if it is below 4 ("run Init with a privileged user first").
+
+Required grants (the partitions are read through the parent table, so new partitions need **no** additional grants; this is verified by the integration tests):
+
+```sql
+GRANT SELECT ON issues, insights_events, schema_migrations TO insights_reader;
+```
+
+(Use your configured table names.) `issues` is needed by `LoadOpenIssues`, `schema_migrations` by `CheckSchema`.
+
+Queries use whitelisted SQL expressions only; all values, including the value key and bucket size, are bind parameters. Every query is validated with its `Validate` method first.
 
 ## License
 
