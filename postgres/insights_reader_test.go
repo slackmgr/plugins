@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -140,7 +141,7 @@ func TestCountInsightsEvents(t *testing.T) {
 
 		mock.ExpectQuery("SELECT to_timestamp(floor(extract(epoch FROM occurred_at)::float8 / $1::float8) * $1::float8), channel_id, COUNT(*)"+
 			" FROM ins WHERE occurred_at >= $2 AND occurred_at < $3 GROUP BY 1, 2 ORDER BY 1, 2 LIMIT $4").
-			WithArgs(900.0, qFrom, qTo, 10000).
+			WithArgs(900.0, qFrom, qTo, 10001).
 			WillReturnRows(pgxmock.NewRows([]string{"b", "c", "n"}).AddRow(bucket, "C1", int64(3)))
 
 		rows, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{
@@ -165,7 +166,7 @@ func TestCountInsightsEvents(t *testing.T) {
 		reader, mock := newReader(t)
 
 		mock.ExpectQuery("SELECT issue_id, COUNT(DISTINCT issue_id) FILTER (WHERE issue_id <> '')"+baseWhere+" GROUP BY 1 ORDER BY 2 DESC, 1 LIMIT $3").
-			WithArgs(qFrom, qTo, 5).
+			WithArgs(qFrom, qTo, 6).
 			WillReturnRows(pgxmock.NewRows([]string{"i", "n"}).AddRow("i1", int64(4)).AddRow("i2", int64(2)))
 
 		rows, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{
@@ -189,7 +190,7 @@ func TestCountInsightsEvents(t *testing.T) {
 		mock.ExpectQuery("SELECT to_timestamp(floor(extract(epoch FROM occurred_at)::float8 / $1::float8) * $1::float8), channel_id, related_channel_id, type, reason, severity, route_key, "+
 			"COALESCE(attrs->>'alertType', ''), COALESCE(attrs->>'host', ''), COALESCE(attrs->>'author', ''), actor_id, correlation_id, issue_id, COUNT(*)"+
 			" FROM ins WHERE occurred_at >= $2 AND occurred_at < $3 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 ORDER BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 LIMIT $4").
-			WithArgs(60.0, qFrom, qTo, 10000).
+			WithArgs(60.0, qFrom, qTo, 10001).
 			WillReturnRows(pgxmock.NewRows(make([]string, 14)).AddRow(qFrom, "channel", "related", "type", "reason", "warning", "route", "alertType", "host", "author", "actor", "corr", "issue", int64(1)))
 
 		rows, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{
@@ -290,7 +291,7 @@ func TestInsightsValueStats(t *testing.T) {
 		bv := "(attrs->'values'->>$2::text)::float8"
 		mock.ExpectQuery("SELECT to_timestamp(floor(extract(epoch FROM occurred_at)::float8 / $1::float8) * $1::float8), reason, COUNT(*), MAX("+bv+")"+
 			" FROM ins WHERE occurred_at >= $3 AND occurred_at < $4 AND attrs->'values' ? $2::text GROUP BY 1, 2 ORDER BY 1, 2 LIMIT $5").
-			WithArgs(3600.0, "open_s", qFrom, qTo, 10000).
+			WithArgs(3600.0, "open_s", qFrom, qTo, 10001).
 			WillReturnRows(pgxmock.NewRows(make([]string, 4)).AddRow(qFrom, "auto_resolved", int64(2), 7.0))
 
 		rows, err := reader.InsightsValueStats(context.Background(), &types.InsightsStatsQuery{
@@ -365,6 +366,83 @@ func TestInsightsValueStats(t *testing.T) {
 				require.ErrorContains(t, err, tt.wantErr)
 			})
 		}
+	})
+}
+
+func TestInsightsReader_RowLimit(t *testing.T) {
+	t.Parallel()
+
+	issueRows := func(n int) *pgxmock.Rows {
+		rows := pgxmock.NewRows([]string{"i", "n"})
+		for i := range n {
+			rows.AddRow(fmt.Sprintf("i%d", i), int64(1))
+		}
+
+		return rows
+	}
+
+	countSQL := "SELECT issue_id, COUNT(*)" + baseWhere + " GROUP BY 1 ORDER BY 1 LIMIT $3"
+	byIssue := []types.InsightsDimension{types.InsightsDimensionIssue}
+
+	t.Run("explicit limit drops the extra row", func(t *testing.T) {
+		t.Parallel()
+
+		reader, mock := newReader(t)
+		mock.ExpectQuery(countSQL).WithArgs(qFrom, qTo, 3).WillReturnRows(issueRows(3))
+
+		rows, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{
+			InsightsFilter: filter(), InsightsGrouping: types.InsightsGrouping{GroupBy: byIssue, Limit: 2},
+		})
+		require.NoError(t, err)
+		require.Len(t, rows, 2)
+		assert.Equal(t, "i1", rows[1].IssueID)
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("count without limit exactly at the maximum", func(t *testing.T) {
+		t.Parallel()
+
+		reader, mock := newReader(t)
+		mock.ExpectQuery(countSQL).WithArgs(qFrom, qTo, types.MaxInsightsRows+1).WillReturnRows(issueRows(types.MaxInsightsRows))
+
+		rows, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{
+			InsightsFilter: filter(), InsightsGrouping: types.InsightsGrouping{GroupBy: byIssue},
+		})
+		require.NoError(t, err)
+		assert.Len(t, rows, types.MaxInsightsRows)
+	})
+
+	t.Run("count without limit over the maximum", func(t *testing.T) {
+		t.Parallel()
+
+		reader, mock := newReader(t)
+		mock.ExpectQuery(countSQL).WithArgs(qFrom, qTo, types.MaxInsightsRows+1).WillReturnRows(issueRows(types.MaxInsightsRows + 1))
+
+		_, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{
+			InsightsFilter: filter(), InsightsGrouping: types.InsightsGrouping{GroupBy: byIssue},
+		})
+		require.ErrorIs(t, err, types.ErrInsightsTooManyRows)
+	})
+
+	t.Run("stats without limit over the maximum", func(t *testing.T) {
+		t.Parallel()
+
+		reader, mock := newReader(t)
+
+		rows := pgxmock.NewRows([]string{"i", "n", "s"})
+		for i := range types.MaxInsightsRows + 1 {
+			rows.AddRow(fmt.Sprintf("i%d", i), int64(1), 1.0)
+		}
+
+		mock.ExpectQuery("SELECT issue_id, COUNT(*), SUM((attrs->'values'->>$1::text)::float8)"+
+			" FROM ins WHERE occurred_at >= $2 AND occurred_at < $3 AND attrs->'values' ? $1::text GROUP BY 1 ORDER BY 1 LIMIT $4").
+			WithArgs("k", qFrom, qTo, types.MaxInsightsRows+1).WillReturnRows(rows)
+
+		_, err := reader.InsightsValueStats(context.Background(), &types.InsightsStatsQuery{
+			InsightsFilter: filter(), InsightsGrouping: types.InsightsGrouping{GroupBy: byIssue},
+			ValueKey: "k", Aggregates: []types.InsightsAggregate{types.InsightsAggregateSum},
+		})
+		require.ErrorIs(t, err, types.ErrInsightsTooManyRows)
 	})
 }
 

@@ -293,7 +293,8 @@ func whereClause(f *types.InsightsFilter, args *sqlArgs) []string {
 }
 
 // groupTail builds the GROUP BY / ORDER BY / LIMIT tail. Group columns are referenced by position. The group
-// columns are the first n select columns; the count (if ordering by count) is column n+1.
+// columns are the first n select columns; the count (if ordering by count) is column n+1. One row more than the
+// limit is fetched, so that [checkRowLimit] can detect results that do not fit.
 func groupTail(n int, orderByCountDesc bool, limit int, args *sqlArgs) string {
 	if n == 0 {
 		return ""
@@ -312,7 +313,22 @@ func groupTail(n int, orderByCountDesc bool, limit int, args *sqlArgs) string {
 		tail += " ORDER BY " + strings.Join(positions, ", ")
 	}
 
-	return tail + " LIMIT " + args.add(limit)
+	return tail + " LIMIT " + args.add(limit+1)
+}
+
+// checkRowLimit handles the extra row fetched by [groupTail]. With an explicit limit the extra row is dropped;
+// without one, the query fails with [types.ErrInsightsTooManyRows] rather than returning a truncated result.
+func checkRowLimit[T any](rows []T, g *types.InsightsGrouping) ([]T, error) {
+	limit := g.EffectiveLimit()
+	if len(rows) <= limit {
+		return rows, nil
+	}
+
+	if g.Limit == 0 {
+		return nil, fmt.Errorf("%w: more than %d groups; narrow the time range or filter, use a larger bucket, or group by fewer dimensions", types.ErrInsightsTooManyRows, limit)
+	}
+
+	return rows[:limit], nil
 }
 
 // CountInsightsEvents counts events matching the query, grouped by the query dimensions.
@@ -379,7 +395,7 @@ func (q *insightsQueries) CountInsightsEvents(ctx context.Context, query *types.
 		return nil, fmt.Errorf("failed to query insights counts: %w", err)
 	}
 
-	return result, nil
+	return checkRowLimit(result, &query.InsightsGrouping)
 }
 
 // aggregateExpr returns the whitelisted SQL expression for an aggregate of the value expression v.
@@ -497,7 +513,7 @@ func (q *insightsQueries) InsightsValueStats(ctx context.Context, query *types.I
 		return nil, fmt.Errorf("failed to query insights stats: %w", err)
 	}
 
-	return result, nil
+	return checkRowLimit(result, &query.InsightsGrouping)
 }
 
 // encodeInsightsCursor encodes the keyset position of an event as an opaque cursor.

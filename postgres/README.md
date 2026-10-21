@@ -216,6 +216,8 @@ The writer user must own the events table (it runs the DDL). Because retention i
 
 Frequently filtered fields are columns (`type`, `reason`, `channel_id`, `related_channel_id`, `issue_id`, `correlation_id`, `severity`, `route_key`, `actor_id`). The rest is stored in the nullable `attrs` JSONB column, with the keys `prevSeverity`, `alertType`, `host`, `author`, `actorName`, `count`, `detail` and `values` (an object of numbers). `attrs` is `NULL` when all of them are empty. The row `version` is `InsightsEventModelVersion`.
 
+Events contain some personal data: `actor_id` and `actorName` (the Slack user ID and real name of users who run commands), and the alert `host` and `author`. They are kept for the insights retention (`WithInsightsRetention`, default 30 days).
+
 ### Read-only access
 
 Dashboards and other read-only consumers should use `InsightsReader`, not `Client`. **Do not call `Client.Init` with a read-only user**: it runs DDL (`CREATE TABLE IF NOT EXISTS ...`) and fails.
@@ -253,6 +255,8 @@ GRANT SELECT ON issues, insights_events, schema_migrations TO insights_reader;
 ```
 
 (Use your configured table names.) `issues` is needed by `LoadOpenIssues`, `schema_migrations` by `CheckSchema`.
+
+Count and stats queries fetch one row more than the limit. Without an explicit `Limit`, a query matching more than `types.MaxInsightsRows` groups fails with `types.ErrInsightsTooManyRows`; with one, the extra rows are dropped.
 
 Queries use whitelisted SQL expressions only; all values, including the value key and bucket size, are bind parameters. Every query is validated with its `Validate` method first.
 

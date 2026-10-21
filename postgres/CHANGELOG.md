@@ -30,6 +30,7 @@ For history prior to this monorepo migration, see the
   - `NewInsightsReader` / `InsightsReader`: standalone read-only `types.InsightsReader` (`default_transaction_read_only=on`, never runs migrations or DDL) with `CheckSchema`. Needs `SELECT` on the issues, insights and migrations tables only
   - Options `WithInsightsEventsTable`, `WithInsightsRetention`, `WithInsightsPoolMaxConnections`, `WithInsightsStatementTimeout`, `WithInsightsReadStatementTimeout`
   - `InsightsEventModelVersion` constant
+  - Count and stats queries without an explicit limit fail with `types.ErrInsightsTooManyRows` when more than `types.MaxInsightsRows` groups match, instead of returning a truncated result (one extra row is fetched to detect this)
 
 ### Changed
 
