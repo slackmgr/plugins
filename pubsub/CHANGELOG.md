@@ -10,6 +10,8 @@ Versions are tagged using the `pubsub/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-21
+
 ### Changed
 
 - Minimum Go version is now 1.26
@@ -72,7 +74,8 @@ _Initial version in the slackmgr/plugins monorepo. The plugin was previously dev
 - Functional options pattern for all configuration (`WithPublisher*`, `WithSubscriber*`)
 - Dependency injection interfaces for testing (`pubsubClient`, `pubsubPublisher`, `pubsubSubscriber`)
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.6...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/pubsub/v0.2.0...HEAD
+[0.2.0]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.6...pubsub/v0.2.0
 [0.1.6]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.5...pubsub/v0.1.6
 [0.1.5]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.4...pubsub/v0.1.5
 [0.1.4]: https://github.com/slackmgr/plugins/compare/pubsub/v0.1.3...pubsub/v0.1.4
