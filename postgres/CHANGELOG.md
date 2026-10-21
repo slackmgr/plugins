@@ -13,6 +13,8 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-21
+
 ### Changed
 
 - Minimum Go version is now 1.26
@@ -112,7 +114,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-postgres-plugin` to `github.com/slackmgr/plugins/postgres`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.5...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.6.0...HEAD
+[0.6.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.5...postgres/v0.6.0
 [0.5.5]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.4...postgres/v0.5.5
 [0.5.4]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.3...postgres/v0.5.4
 [0.5.3]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.2...postgres/v0.5.3
