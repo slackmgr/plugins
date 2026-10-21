@@ -18,8 +18,11 @@ func main() {
 		log.Fatalf("Configuration error: %v", err)
 	}
 
-	log.Printf("Source: DynamoDB table=%q region=%s", cfg.dynamoTable, cfg.awsRegion)
-	log.Printf("Target: Postgres %s@%s:%d/%s (ssl=%s)", cfg.pgUser, cfg.pgHost, cfg.pgPort, cfg.pgDatabase, cfg.pgSSLMode)
+	// Config values come from the operator and are quoted with %q.
+	// #nosec G706
+	log.Printf("Source: DynamoDB table=%q region=%q", cfg.dynamoTable, cfg.awsRegion)
+	// #nosec G706
+	log.Printf("Target: Postgres user=%q host=%q port=%d database=%q ssl=%q", cfg.pgUser, cfg.pgHost, cfg.pgPort, cfg.pgDatabase, cfg.pgSSLMode)
 
 	if err := run(context.Background(), cfg); err != nil {
 		log.Fatalf("Migration failed: %v", err)

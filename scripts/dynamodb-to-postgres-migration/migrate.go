@@ -13,7 +13,6 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dynamodbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-
 	"github.com/slackmgr/plugins/postgres"
 	"github.com/slackmgr/types"
 )

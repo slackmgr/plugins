@@ -43,7 +43,7 @@ func checkDataTablesEmpty(ctx context.Context, cfg *appConfig) error {
 	tables := []string{cfg.pgIssuesTable, cfg.pgMoveMappingsTable}
 	for _, table := range tables {
 		var count int
-		if err := pool.QueryRow(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", table)).Scan(&count); err != nil {
+		if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count); err != nil {
 			return fmt.Errorf("failed to count rows in %s: %w", table, err)
 		}
 		if count > 0 {

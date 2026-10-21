@@ -18,11 +18,11 @@ type rawIssue struct {
 }
 
 func (i *rawIssue) MarshalJSON() ([]byte, error) { return i.body, nil }
-func (i *rawIssue) ChannelID() string             { return i.channelID }
-func (i *rawIssue) UniqueID() string              { return i.uniqueID }
-func (i *rawIssue) GetCorrelationID() string      { return i.correlationID }
-func (i *rawIssue) IsOpen() bool                  { return i.isOpen }
-func (i *rawIssue) CurrentPostID() string         { return i.postID }
+func (i *rawIssue) ChannelID() string            { return i.channelID }
+func (i *rawIssue) UniqueID() string             { return i.uniqueID }
+func (i *rawIssue) GetCorrelationID() string     { return i.correlationID }
+func (i *rawIssue) IsOpen() bool                 { return i.isOpen }
+func (i *rawIssue) CurrentPostID() string        { return i.postID }
 
 // rawMoveMapping wraps raw DynamoDB item attributes and implements types.MoveMapping.
 type rawMoveMapping struct {
@@ -40,5 +40,7 @@ func (m *rawMoveMapping) UniqueID() string {
 func (m *rawMoveMapping) GetCorrelationID() string { return m.correlationID }
 
 // Ensure interfaces are satisfied at compile time.
-var _ types.Issue = (*rawIssue)(nil)
-var _ types.MoveMapping = (*rawMoveMapping)(nil)
+var (
+	_ types.Issue       = (*rawIssue)(nil)
+	_ types.MoveMapping = (*rawMoveMapping)(nil)
+)
