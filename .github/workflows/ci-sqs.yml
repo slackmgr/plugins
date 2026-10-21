@@ -7,6 +7,7 @@ on:
       - 'sqs/*.go'
       - 'sqs/go.mod'
       - 'sqs/go.sum'
+      - 'go.work'
       - '.golangci.yaml'
       - '.github/workflows/ci-sqs.yml'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'sqs/*.go'
       - 'sqs/go.mod'
       - 'sqs/go.sum'
+      - 'go.work'
       - '.golangci.yaml'
       - '.github/workflows/ci-sqs.yml'
   workflow_dispatch:
