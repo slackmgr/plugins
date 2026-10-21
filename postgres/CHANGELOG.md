@@ -34,6 +34,7 @@ For history prior to this monorepo migration, see the
 
 ### Changed
 
+- Bump `github.com/slackmgr/types` dependency to v0.8.0
 - The internal `pool` interface gained `CopyFrom`
 
 ## [0.6.0] - 2026-10-21

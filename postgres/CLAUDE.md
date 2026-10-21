@@ -54,7 +54,7 @@ Six tables (names configurable via `With*Table` options):
 
 All data tables include a `version` column and an `attrs` JSONB column for the serialised entity.
 
-**Insights** is opt-in (`WithInsightsEnabled`): a second pgxpool (`slackmgr-insights`, own `statement_timeout`, `synchronous_commit=off`) is created in `Connect` and closed in `Close`; the main pool is never used for insights. Tests need types with the insights contract (root workspace: `GOWORK=<repo>/go.work`) until the types release is bumped in `go.mod`.
+**Insights** is opt-in (`WithInsightsEnabled`): a second pgxpool (`slackmgr-insights`, own `statement_timeout`, `synchronous_commit=off`) is created in `Connect` and closed in `Close`; the main pool is never used for insights.
 
 **Adding a future migration:** append a new `migration{version: N, stmts: [...]}` entry to `migrations()` in `options.go`. Migrations are applied in order, each exactly once, under a `pg_advisory_xact_lock`.
 
