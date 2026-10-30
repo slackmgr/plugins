@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.5
-	github.com/slackmgr/types v0.7.1
+	github.com/slackmgr/types v0.8.0
 	golang.org/x/sync v0.24.0
 )
 
