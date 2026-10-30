@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.72.0
-	github.com/slackmgr/types v0.7.1
+	github.com/slackmgr/types v0.8.0
 )
 
 require (
