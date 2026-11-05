@@ -19,7 +19,7 @@ For history prior to this monorepo migration, see the
 
 ### Changed
 - `InsightsReader.CheckSchema` now requires schema version 5 (the reader queries the new `client` column). Upgrade the writer, which runs the migrations in `Init`, before the reader
-- Requires `github.com/slackmgr/types` with `InsightsEvent.Client`, `InsightsFilter.Clients` and `InsightsDimensionClient`
+- Bump `github.com/slackmgr/types` dependency to v0.11.0 (required for the client field, filter and dimension)
 
 ## [0.7.0] - 2026-10-21
 

@@ -178,7 +178,7 @@ client := postgres.New(
 
 ## Insights
 
-Insights records structured events (alert outcomes, issue lifecycle, commands, Slack posts, ...) for dashboards and reporting. It requires `github.com/slackmgr/types` v0.8.0 or later. It is opt-in and isolated from the regular alert and issue storage.
+Insights records structured events (alert outcomes, issue lifecycle, commands, Slack posts, ...) for dashboards and reporting. It requires `github.com/slackmgr/types` v0.8.0 or later (v0.11.0 or later for the client column, filter and dimension). It is opt-in and isolated from the regular alert and issue storage.
 
 ### Writing events
 
