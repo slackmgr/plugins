@@ -13,6 +13,8 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-05
+
 ### Added
 - Insights: schema migration 5 adds a `client TEXT NOT NULL DEFAULT ''` column to the insights events table (all existing and future partitions) and an index on `(client, occurred_at)`. Events recorded before the migration have an empty client
 - Insights: the writer stores `InsightsEvent.Client` in the `client` column, and the reader supports the `Clients` filter and the `client` dimension in count, stats and list queries
@@ -148,7 +150,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-postgres-plugin` to `github.com/slackmgr/plugins/postgres`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.7.0...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.8.0...HEAD
+[0.8.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.7.0...postgres/v0.8.0
 [0.7.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.6.0...postgres/v0.7.0
 [0.6.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.5...postgres/v0.6.0
 [0.5.5]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.4...postgres/v0.5.5
