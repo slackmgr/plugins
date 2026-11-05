@@ -40,7 +40,7 @@ const (
 func insightsColumns() []string {
 	return []string{
 		"version", "occurred_at", "type", "reason", "channel_id", "related_channel_id", "issue_id",
-		"correlation_id", "severity", "route_key", "actor_id", "attrs",
+		"correlation_id", "severity", "route_key", "actor_id", "client", "attrs",
 	}
 }
 
@@ -146,7 +146,7 @@ func (c *Client) WriteInsightsEvents(ctx context.Context, events []types.Insight
 
 		rows = append(rows, []any{
 			int16(InsightsEventModelVersion), e.Time.UTC(), string(e.Type), e.Reason, e.ChannelID, e.RelatedChannelID,
-			e.IssueID, e.CorrelationID, string(e.Severity), e.RouteKey, e.ActorID, attrsValue,
+			e.IssueID, e.CorrelationID, string(e.Severity), e.RouteKey, e.ActorID, e.Client, attrsValue,
 		})
 	}
 

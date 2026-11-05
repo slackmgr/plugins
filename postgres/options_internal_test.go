@@ -167,7 +167,7 @@ func TestMigration4_InsightsEvents(t *testing.T) {
 	o.insightsEventsTable = "my_events"
 
 	migrations := o.migrations()
-	require.Len(t, migrations, 4)
+	require.GreaterOrEqual(t, len(migrations), 4)
 	require.Equal(t, 4, migrations[3].version)
 	require.Len(t, migrations[3].stmts, 4)
 
@@ -178,6 +178,29 @@ func TestMigration4_InsightsEvents(t *testing.T) {
 	assert.Equal(t, "CREATE INDEX IF NOT EXISTS my_events_time_brin ON my_events USING BRIN (occurred_at);", migrations[3].stmts[1])
 	assert.Equal(t, "CREATE INDEX IF NOT EXISTS my_events_chan_type_time_idx ON my_events (channel_id, type, occurred_at);", migrations[3].stmts[2])
 	assert.Equal(t, "CREATE INDEX IF NOT EXISTS my_events_issue_time_idx ON my_events (issue_id, occurred_at) WHERE issue_id <> '';", migrations[3].stmts[3])
+}
+
+func TestMigration5_InsightsClient(t *testing.T) {
+	t.Parallel()
+
+	o := newOptions()
+	o.insightsEventsTable = "my_events"
+
+	migrations := o.migrations()
+	require.Len(t, migrations, 5)
+	require.Equal(t, 5, migrations[4].version)
+	assert.Equal(t, []string{
+		"ALTER TABLE my_events ADD COLUMN IF NOT EXISTS client TEXT NOT NULL DEFAULT '';",
+		"CREATE INDEX IF NOT EXISTS my_events_client_time_idx ON my_events (client, occurred_at);",
+	}, migrations[4].stmts)
+}
+
+func TestMigrations_VersionsAreSequential(t *testing.T) {
+	t.Parallel()
+
+	for i, m := range newOptions().migrations() {
+		assert.Equal(t, i+1, m.version)
+	}
 }
 
 func TestInsightsDefaults(t *testing.T) {

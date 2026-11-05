@@ -144,7 +144,7 @@ func TestWriteInsightsEvents(t *testing.T) {
 			{
 				Time: eventTime, Type: types.InsightsEventIssueArchived, Reason: "r", ChannelID: "C1", RelatedChannelID: "C2",
 				IssueID: "i", CorrelationID: "cor", Severity: types.AlertError, PrevSeverity: types.AlertWarning, RouteKey: "rk",
-				AlertType: "at", Host: "h", Author: "a", ActorID: "U1", ActorName: "Name", Count: 3, Detail: "d",
+				AlertType: "at", Host: "h", Author: "a", Client: "prometheus", ActorID: "U1", ActorName: "Name", Count: 3, Detail: "d",
 				Values: map[string]float64{"open_s": 1.5},
 			},
 		})
@@ -153,7 +153,7 @@ func TestWriteInsightsEvents(t *testing.T) {
 		assert.Equal(t, pgx.Identifier{"ins"}, capture.table)
 		assert.Equal(t, []string{
 			"version", "occurred_at", "type", "reason", "channel_id", "related_channel_id", "issue_id",
-			"correlation_id", "severity", "route_key", "actor_id", "attrs",
+			"correlation_id", "severity", "route_key", "actor_id", "client", "attrs",
 		}, capture.columns)
 		require.Len(t, capture.rows, 2)
 
@@ -165,11 +165,12 @@ func TestWriteInsightsEvents(t *testing.T) {
 		assert.Equal(t, time.UTC, minimalTime.Location())
 		assert.Equal(t, "alert.new_issue", minimal[2])
 		assert.Equal(t, "C1", minimal[4])
-		assert.Nil(t, minimal[11], "attrs must be SQL NULL when empty")
+		assert.Empty(t, minimal[11], "client must be empty when not set")
+		assert.Nil(t, minimal[12], "attrs must be SQL NULL when empty")
 
 		full := capture.rows[1]
-		assert.Equal(t, []any{"r", "C1", "C2", "i", "cor", "error", "rk", "U1"}, []any{full[3], full[4], full[5], full[6], full[7], full[8], full[9], full[10]})
-		fullAttrs, ok := full[11].([]byte)
+		assert.Equal(t, []any{"r", "C1", "C2", "i", "cor", "error", "rk", "U1", "prometheus"}, []any{full[3], full[4], full[5], full[6], full[7], full[8], full[9], full[10], full[11]})
+		fullAttrs, ok := full[12].([]byte)
 		require.True(t, ok)
 		assert.JSONEq(t,
 			`{"prevSeverity":"warning","alertType":"at","host":"h","author":"a","actorName":"Name","count":3,"detail":"d","values":{"open_s":1.5}}`,
@@ -633,7 +634,7 @@ func TestInit_InsightsMaintenance(t *testing.T) {
 func expectMigrationsApplied(mock pgxmock.PgxPoolIface) {
 	mock.ExpectExec("").WillReturnResult(pgxmock.NewResult("", 0))
 
-	for range 4 {
+	for range 5 {
 		mock.ExpectBegin()
 		mock.ExpectExec("pg_advisory_xact_lock").WithArgs(pgxmock.AnyArg()).WillReturnResult(pgxmock.NewResult("", 0))
 		mock.ExpectQuery("SELECT EXISTS").WithArgs(pgxmock.AnyArg()).WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))

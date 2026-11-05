@@ -475,6 +475,17 @@ func (o *options) migrations() []migration {
 				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_issue_time_idx ON %s (issue_id, occurred_at) WHERE issue_id <> '';`, o.insightsEventsTable, o.insightsEventsTable),
 			},
 		},
+		{
+			version: 5,
+			stmts: []string{
+				// Client (monitoring tool or integration) of the alert or issue. Adding a column to the partitioned
+				// parent also adds it to all existing partitions; with a constant default this is a metadata-only
+				// change (no table rewrite). Existing events get ''.
+				fmt.Sprintf(`ALTER TABLE %s ADD COLUMN IF NOT EXISTS client TEXT NOT NULL DEFAULT '';`, o.insightsEventsTable),
+				// An index on the partitioned parent is created on every existing partition, and on all future partitions.
+				fmt.Sprintf(`CREATE INDEX IF NOT EXISTS %s_client_time_idx ON %s (client, occurred_at);`, o.insightsEventsTable, o.insightsEventsTable),
+			},
+		},
 	}
 }
 

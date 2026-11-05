@@ -22,7 +22,7 @@ var (
 
 const (
 	baseWhere  = " FROM ins WHERE occurred_at >= $1 AND occurred_at < $2"
-	listSelect = "SELECT id, occurred_at, type, reason, channel_id, related_channel_id, issue_id, correlation_id, severity, route_key, actor_id, attrs FROM ins WHERE "
+	listSelect = "SELECT id, occurred_at, type, reason, channel_id, related_channel_id, issue_id, correlation_id, severity, route_key, actor_id, client, attrs FROM ins WHERE "
 )
 
 //nolint:ireturn // test helper
@@ -118,12 +118,13 @@ func TestCountInsightsEvents(t *testing.T) {
 		f.Reasons = []string{"r"}
 		f.Severities = []types.AlertSeverity{types.AlertError}
 		f.RouteKeys = []string{"rk"}
+		f.Clients = []string{"prometheus"}
 		f.IssueID, f.CorrelationID, f.ActorID = "i", "c", "a"
 
 		mock.ExpectQuery("SELECT COUNT(*)"+baseWhere+
 			" AND channel_id = ANY($3) AND related_channel_id = ANY($4) AND type = ANY($5) AND reason = ANY($6)"+
-			" AND severity = ANY($7) AND route_key = ANY($8) AND issue_id = $9 AND correlation_id = $10 AND actor_id = $11").
-			WithArgs(qFrom, qTo, []string{"C1"}, []string{"C2"}, []string{"alert.queued"}, []string{"r"}, []string{"error"}, []string{"rk"}, "i", "c", "a").
+			" AND severity = ANY($7) AND route_key = ANY($8) AND client = ANY($9) AND issue_id = $10 AND correlation_id = $11 AND actor_id = $12").
+			WithArgs(qFrom, qTo, []string{"C1"}, []string{"C2"}, []string{"alert.queued"}, []string{"r"}, []string{"error"}, []string{"rk"}, []string{"prometheus"}, "i", "c", "a").
 			WillReturnRows(pgxmock.NewRows([]string{"count"}).AddRow(int64(0)))
 
 		rows, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{InsightsFilter: f})
@@ -188,10 +189,10 @@ func TestCountInsightsEvents(t *testing.T) {
 		reader, mock := newReader(t)
 
 		mock.ExpectQuery("SELECT to_timestamp(floor(extract(epoch FROM occurred_at)::float8 / $1::float8) * $1::float8), channel_id, related_channel_id, type, reason, severity, route_key, "+
-			"COALESCE(attrs->>'alertType', ''), COALESCE(attrs->>'host', ''), COALESCE(attrs->>'author', ''), actor_id, correlation_id, issue_id, COUNT(*)"+
-			" FROM ins WHERE occurred_at >= $2 AND occurred_at < $3 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 ORDER BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 LIMIT $4").
+			"COALESCE(attrs->>'alertType', ''), COALESCE(attrs->>'host', ''), COALESCE(attrs->>'author', ''), client, actor_id, correlation_id, issue_id, COUNT(*)"+
+			" FROM ins WHERE occurred_at >= $2 AND occurred_at < $3 GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 ORDER BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 LIMIT $4").
 			WithArgs(60.0, qFrom, qTo, 10001).
-			WillReturnRows(pgxmock.NewRows(make([]string, 14)).AddRow(qFrom, "channel", "related", "type", "reason", "warning", "route", "alertType", "host", "author", "actor", "corr", "issue", int64(1)))
+			WillReturnRows(pgxmock.NewRows(make([]string, 15)).AddRow(qFrom, "channel", "related", "type", "reason", "warning", "route", "alertType", "host", "author", "client", "actor", "corr", "issue", int64(1)))
 
 		rows, err := reader.CountInsightsEvents(context.Background(), &types.InsightsCountQuery{
 			InsightsFilter: filter(),
@@ -200,8 +201,8 @@ func TestCountInsightsEvents(t *testing.T) {
 				GroupBy: []types.InsightsDimension{
 					types.InsightsDimensionBucket, types.InsightsDimensionChannel, types.InsightsDimensionRelatedChannel, types.InsightsDimensionType,
 					types.InsightsDimensionReason, types.InsightsDimensionSeverity, types.InsightsDimensionRouteKey, types.InsightsDimensionAlertType,
-					types.InsightsDimensionHost, types.InsightsDimensionAuthor, types.InsightsDimensionActor, types.InsightsDimensionCorrelationID,
-					types.InsightsDimensionIssue,
+					types.InsightsDimensionHost, types.InsightsDimensionAuthor, types.InsightsDimensionClient, types.InsightsDimensionActor,
+					types.InsightsDimensionCorrelationID, types.InsightsDimensionIssue,
 				},
 			},
 		})
@@ -210,7 +211,8 @@ func TestCountInsightsEvents(t *testing.T) {
 		assert.Equal(t, types.InsightsCountRow{
 			InsightsGroupKey: types.InsightsGroupKey{
 				Bucket: qFrom, ChannelID: "channel", RelatedChannelID: "related", Type: "type", Reason: "reason", Severity: types.AlertWarning,
-				RouteKey: "route", AlertType: "alertType", Host: "host", Author: "author", ActorID: "actor", CorrelationID: "corr", IssueID: "issue",
+				RouteKey: "route", AlertType: "alertType", Host: "host", Author: "author", Client: "client", ActorID: "actor", CorrelationID: "corr",
+				IssueID: "issue",
 			},
 			Count: 1,
 		}, *rows[0])
@@ -449,7 +451,7 @@ func TestInsightsReader_RowLimit(t *testing.T) {
 func TestListInsightsEvents(t *testing.T) {
 	t.Parallel()
 
-	cols := []string{"id", "occurred_at", "type", "reason", "channel_id", "related_channel_id", "issue_id", "correlation_id", "severity", "route_key", "actor_id", "attrs"}
+	cols := []string{"id", "occurred_at", "type", "reason", "channel_id", "related_channel_id", "issue_id", "correlation_id", "severity", "route_key", "actor_id", "client", "attrs"}
 	t1 := time.Date(2026, 3, 1, 10, 0, 0, 123456000, time.FixedZone("x", 7200))
 	t2 := t1.Add(time.Minute)
 	t3 := t2.Add(time.Minute)
@@ -468,8 +470,8 @@ func TestListInsightsEvents(t *testing.T) {
 		mock.ExpectQuery(listSelect+"occurred_at >= $1 AND occurred_at < $2 ORDER BY occurred_at ASC, id ASC LIMIT $3").
 			WithArgs(qFrom, qTo, 101).
 			WillReturnRows(pgxmock.NewRows(cols).
-				AddRow(int64(1), t1, "alert.queued", "", "C1", "", "", "", "", "", "", []byte(nil)).
-				AddRow(int64(2), t2, "issue.archived", "r", "C1", "C2", "i", "c", "error", "rk", "U1", attrs))
+				AddRow(int64(1), t1, "alert.queued", "", "C1", "", "", "", "", "", "", "", []byte(nil)).
+				AddRow(int64(2), t2, "issue.archived", "r", "C1", "C2", "i", "c", "error", "rk", "U1", "grafana", attrs))
 
 		page, err := reader.ListInsightsEvents(context.Background(), &types.InsightsListQuery{InsightsFilter: filter()})
 		require.NoError(t, err)
@@ -485,7 +487,7 @@ func TestListInsightsEvents(t *testing.T) {
 		assert.Equal(t, types.InsightsEvent{
 			Time: page.Events[1].Time, Type: types.InsightsEventIssueArchived, Reason: "r", ChannelID: "C1", RelatedChannelID: "C2", IssueID: "i",
 			CorrelationID: "c", Severity: types.AlertError, PrevSeverity: types.AlertWarning, RouteKey: "rk", AlertType: "at", Host: "h",
-			Author: "a", ActorID: "U1", ActorName: "n", Count: 4, Detail: "d", Values: map[string]float64{"open_s": 2},
+			Author: "a", Client: "grafana", ActorID: "U1", ActorName: "n", Count: 4, Detail: "d", Values: map[string]float64{"open_s": 2},
 		}, *page.Events[1])
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -499,9 +501,9 @@ func TestListInsightsEvents(t *testing.T) {
 		mock.ExpectQuery(listSelect+"occurred_at >= $1 AND occurred_at < $2 AND (occurred_at, id) < ($3, $4) ORDER BY occurred_at DESC, id DESC LIMIT $5").
 			WithArgs(qFrom, qTo, t3.UTC(), int64(99), 3).
 			WillReturnRows(pgxmock.NewRows(cols).
-				AddRow(int64(8), t2, "alert.queued", "", "C1", "", "", "", "", "", "", []byte(nil)).
-				AddRow(int64(7), t1, "alert.queued", "", "C1", "", "", "", "", "", "", []byte(nil)).
-				AddRow(int64(6), t1, "alert.queued", "", "C1", "", "", "", "", "", "", []byte(nil)))
+				AddRow(int64(8), t2, "alert.queued", "", "C1", "", "", "", "", "", "", "", []byte(nil)).
+				AddRow(int64(7), t1, "alert.queued", "", "C1", "", "", "", "", "", "", "", []byte(nil)).
+				AddRow(int64(6), t1, "alert.queued", "", "C1", "", "", "", "", "", "", "", []byte(nil)))
 
 		page, err := reader.ListInsightsEvents(context.Background(), &types.InsightsListQuery{InsightsFilter: filter(), Cursor: cursor, Limit: 2, Descending: true})
 		require.NoError(t, err)
@@ -531,13 +533,13 @@ func TestListInsightsEvents(t *testing.T) {
 		}{
 			"query": {func(e *pgxmock.ExpectedQuery) { e.WillReturnError(boom) }, "failed to query insights events"},
 			"scan": {func(e *pgxmock.ExpectedQuery) {
-				e.WillReturnRows(pgxmock.NewRows(cols).AddRow("x", t1, "t", "", "", "", "", "", "", "", "", []byte(nil)))
+				e.WillReturnRows(pgxmock.NewRows(cols).AddRow("x", t1, "t", "", "", "", "", "", "", "", "", "", []byte(nil)))
 			}, "failed to scan insights event"},
 			"bad attrs": {func(e *pgxmock.ExpectedQuery) {
-				e.WillReturnRows(pgxmock.NewRows(cols).AddRow(int64(1), t1, "t", "", "", "", "", "", "", "", "", []byte("{bad")))
+				e.WillReturnRows(pgxmock.NewRows(cols).AddRow(int64(1), t1, "t", "", "", "", "", "", "", "", "", "", []byte("{bad")))
 			}, "failed to unmarshal insights event attributes"},
 			"rows": {func(e *pgxmock.ExpectedQuery) {
-				e.WillReturnRows(pgxmock.NewRows(cols).AddRow(int64(1), t1, "t", "", "", "", "", "", "", "", "", []byte(nil)).CloseError(boom))
+				e.WillReturnRows(pgxmock.NewRows(cols).AddRow(int64(1), t1, "t", "", "", "", "", "", "", "", "", "", []byte(nil)).CloseError(boom))
 			}, "failed to query insights events"},
 		}
 
@@ -673,7 +675,7 @@ func TestInsightsReader_CheckSchema(t *testing.T) {
 		t.Parallel()
 
 		reader, mock := newStandalone(t)
-		mock.ExpectQuery(sql).WillReturnRows(pgxmock.NewRows([]string{"v"}).AddRow(4))
+		mock.ExpectQuery(sql).WillReturnRows(pgxmock.NewRows([]string{"v"}).AddRow(5))
 
 		require.NoError(t, reader.CheckSchema(context.Background()))
 	})
@@ -682,10 +684,10 @@ func TestInsightsReader_CheckSchema(t *testing.T) {
 		t.Parallel()
 
 		reader, mock := newStandalone(t)
-		mock.ExpectQuery(sql).WillReturnRows(pgxmock.NewRows([]string{"v"}).AddRow(3))
+		mock.ExpectQuery(sql).WillReturnRows(pgxmock.NewRows([]string{"v"}).AddRow(4))
 
 		err := reader.CheckSchema(context.Background())
-		require.ErrorContains(t, err, "insights schema not found: schema version 3 < 4; run Init with a privileged user first")
+		require.ErrorContains(t, err, "insights schema not found or too old: schema version 4 < 5; run Init with a privileged user first")
 	})
 
 	t.Run("query error", func(t *testing.T) {

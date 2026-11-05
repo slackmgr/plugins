@@ -198,3 +198,68 @@ func TestInsightsParentOnlyGrantIntegration(t *testing.T) {
 	_, err = admin.Exec(ctx, "DROP TABLE "+partition)
 	require.NoError(t, err)
 }
+
+// TestInsightsClientMigrationOnExistingPartitionsIntegration verifies that migration 5 adds the client column and
+// index to a version 4 events table that already has partitions with data.
+func TestInsightsClientMigrationOnExistingPartitionsIntegration(t *testing.T) {
+	ctx := context.Background()
+
+	pool, err := pgxpool.New(ctx, "postgres://postgres:qwerty@localhost:5432/slack_manager?sslmode=disable")
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	table := "__insights_upgrade_integration_test"
+	partition := table + "_p20260101"
+	opts := []postgres.Option{postgres.WithInsightsEventsTable(table)}
+
+	_, err = pool.Exec(ctx, "DROP TABLE IF EXISTS "+table+" CASCADE")
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = pool.Exec(ctx, "DROP TABLE IF EXISTS "+table+" CASCADE") })
+
+	// Version 4 schema with an existing partition and event.
+	for _, stmt := range postgres.ExportMigrationStatements(4, opts...) {
+		_, err = pool.Exec(ctx, stmt)
+		require.NoError(t, err)
+	}
+
+	_, err = pool.Exec(ctx, fmt.Sprintf("CREATE TABLE %s PARTITION OF %s FOR VALUES FROM ('2026-01-01 00:00:00+00') TO ('2026-01-02 00:00:00+00')", partition, table))
+	require.NoError(t, err)
+
+	_, err = pool.Exec(ctx, fmt.Sprintf("INSERT INTO %s (version, occurred_at, type) VALUES (1, '2026-01-01 12:00:00+00', 'alert.queued')", table))
+	require.NoError(t, err)
+
+	// Migration 5, applied twice to verify that it is idempotent.
+	for range 2 {
+		for _, stmt := range postgres.ExportMigrationStatements(5, opts...) {
+			_, err = pool.Exec(ctx, stmt)
+			require.NoError(t, err)
+		}
+	}
+
+	// The existing event gets an empty client, read through both the parent and the partition.
+	for _, rel := range []string{table, partition} {
+		var client string
+		require.NoError(t, pool.QueryRow(ctx, "SELECT client FROM "+rel).Scan(&client))
+		assert.Empty(t, client, rel)
+	}
+
+	// The index exists on the existing partition.
+	var indexes int
+	require.NoError(t, pool.QueryRow(ctx, "SELECT COUNT(*) FROM pg_indexes WHERE tablename = $1 AND indexdef LIKE '%(client, occurred_at)%'", partition).Scan(&indexes))
+	assert.Equal(t, 1, indexes, "the client index must be created on existing partitions")
+
+	// New partitions inherit the column and the index.
+	newPartition := table + "_p20260102"
+	_, err = pool.Exec(ctx, fmt.Sprintf("CREATE TABLE %s PARTITION OF %s FOR VALUES FROM ('2026-01-02 00:00:00+00') TO ('2026-01-03 00:00:00+00')", newPartition, table))
+	require.NoError(t, err)
+
+	_, err = pool.Exec(ctx, fmt.Sprintf("INSERT INTO %s (version, occurred_at, type, client) VALUES (1, '2026-01-02 12:00:00+00', 'alert.queued', 'prometheus')", table))
+	require.NoError(t, err)
+
+	var client string
+	require.NoError(t, pool.QueryRow(ctx, "SELECT client FROM "+newPartition).Scan(&client))
+	assert.Equal(t, "prometheus", client)
+
+	require.NoError(t, pool.QueryRow(ctx, "SELECT COUNT(*) FROM pg_indexes WHERE tablename = $1 AND indexdef LIKE '%(client, occurred_at)%'", newPartition).Scan(&indexes))
+	assert.Equal(t, 1, indexes, "the client index must be created on new partitions")
+}

@@ -13,6 +13,14 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+### Added
+- Insights: schema migration 5 adds a `client TEXT NOT NULL DEFAULT ''` column to the insights events table (all existing and future partitions) and an index on `(client, occurred_at)`. Events recorded before the migration have an empty client
+- Insights: the writer stores `InsightsEvent.Client` in the `client` column, and the reader supports the `Clients` filter and the `client` dimension in count, stats and list queries
+
+### Changed
+- `InsightsReader.CheckSchema` now requires schema version 5 (the reader queries the new `client` column). Upgrade the writer, which runs the migrations in `Init`, before the reader
+- Requires `github.com/slackmgr/types` with `InsightsEvent.Client`, `InsightsFilter.Clients` and `InsightsDimensionClient`
+
 ## [0.7.0] - 2026-10-21
 
 ### Fixed

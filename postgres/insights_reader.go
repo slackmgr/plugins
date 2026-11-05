@@ -15,8 +15,9 @@ import (
 	"github.com/slackmgr/types"
 )
 
-// insightsMinSchemaVersion is the schema version (migration) that introduced the insights events table.
-const insightsMinSchemaVersion = 4
+// insightsMinSchemaVersion is the oldest schema version (migration) that the reader supports: version 4
+// introduced the insights events table, and version 5 added the client column.
+const insightsMinSchemaVersion = 5
 
 var errInvalidInsightsCursor = errors.New("invalid cursor")
 
@@ -100,8 +101,9 @@ func (r *InsightsReader) Close() {
 	}
 }
 
-// CheckSchema verifies that the database schema includes the insights events table, by reading the maximum
-// applied migration version. It returns a descriptive error if the schema is too old.
+// CheckSchema verifies that the database schema is recent enough for the reader (it includes the insights events
+// table and all columns the reader queries), by reading the maximum applied migration version. It returns a
+// descriptive error if the schema is too old.
 func (r *InsightsReader) CheckSchema(ctx context.Context) error {
 	if r.conn == nil {
 		return errNotConnected
@@ -115,7 +117,7 @@ func (r *InsightsReader) CheckSchema(ctx context.Context) error {
 	}
 
 	if version < insightsMinSchemaVersion {
-		return fmt.Errorf("insights schema not found: schema version %d < %d; run Init with a privileged user first", version, insightsMinSchemaVersion)
+		return fmt.Errorf("insights schema not found or too old: schema version %d < %d; run Init with a privileged user first", version, insightsMinSchemaVersion)
 	}
 
 	return nil
@@ -159,6 +161,8 @@ func dimensionExpr(d types.InsightsDimension, bucketParam string) string {
 		return "COALESCE(attrs->>'host', '')"
 	case types.InsightsDimensionAuthor:
 		return "COALESCE(attrs->>'author', '')"
+	case types.InsightsDimensionClient:
+		return "client"
 	case types.InsightsDimensionActor:
 		return "actor_id"
 	case types.InsightsDimensionCorrelationID:
@@ -230,6 +234,8 @@ func groupScanTargets(dims []types.InsightsDimension) ([]any, func(*types.Insigh
 				k.Host = strs[i]
 			case types.InsightsDimensionAuthor:
 				k.Author = strs[i]
+			case types.InsightsDimensionClient:
+				k.Client = strs[i]
 			case types.InsightsDimensionActor:
 				k.ActorID = strs[i]
 			case types.InsightsDimensionCorrelationID:
@@ -269,6 +275,7 @@ func whereClause(f *types.InsightsFilter, args *sqlArgs) []string {
 		{"reason", f.Reasons},
 		{"severity", toStrings(f.Severities)},
 		{"route_key", f.RouteKeys},
+		{"client", f.Clients},
 	}
 
 	for _, l := range lists {
@@ -581,7 +588,7 @@ func (q *insightsQueries) ListInsightsEvents(ctx context.Context, query *types.I
 
 	limit := query.EffectiveLimit()
 
-	stmt := "SELECT id, occurred_at, type, reason, channel_id, related_channel_id, issue_id, correlation_id, severity, route_key, actor_id, attrs FROM " +
+	stmt := "SELECT id, occurred_at, type, reason, channel_id, related_channel_id, issue_id, correlation_id, severity, route_key, actor_id, client, attrs FROM " +
 		q.opts.insightsEventsTable + " WHERE " + strings.Join(conds, " AND ") +
 		" ORDER BY occurred_at " + order + ", id " + order + " LIMIT " + args.add(limit+1)
 
@@ -598,13 +605,13 @@ func (q *insightsQueries) ListInsightsEvents(ctx context.Context, query *types.I
 
 	for rows.Next() {
 		var (
-			id                                                                   int64
-			occurredAt                                                           time.Time
-			typ, reason, channel, related, issue, cor, severity, routeKey, actor string
-			attrs                                                                []byte
+			id                                                                           int64
+			occurredAt                                                                   time.Time
+			typ, reason, channel, related, issue, cor, severity, routeKey, actor, client string
+			attrs                                                                        []byte
 		)
 
-		if err := rows.Scan(&id, &occurredAt, &typ, &reason, &channel, &related, &issue, &cor, &severity, &routeKey, &actor, &attrs); err != nil {
+		if err := rows.Scan(&id, &occurredAt, &typ, &reason, &channel, &related, &issue, &cor, &severity, &routeKey, &actor, &client, &attrs); err != nil {
 			return nil, fmt.Errorf("failed to scan insights event: %w", err)
 		}
 
@@ -618,7 +625,7 @@ func (q *insightsQueries) ListInsightsEvents(ctx context.Context, query *types.I
 		e := types.InsightsEvent{
 			Time: occurredAt.UTC(), Type: types.InsightsEventType(typ), Reason: reason, ChannelID: channel,
 			RelatedChannelID: related, IssueID: issue, CorrelationID: cor, Severity: types.AlertSeverity(severity),
-			RouteKey: routeKey, ActorID: actor,
+			RouteKey: routeKey, ActorID: actor, Client: client,
 		}
 
 		if len(attrs) > 0 {

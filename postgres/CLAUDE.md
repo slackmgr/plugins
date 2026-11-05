@@ -49,7 +49,7 @@ Six tables (names configurable via `With*Table` options):
 - `alerts` — with TTL (`expires_at`)
 - `move_mappings` — issue move tracking between channels
 - `channel_processing_state` — per-channel processing timestamps
-- `insights_events` — insights events (migration 4), `PARTITION BY RANGE (occurred_at)` with daily partitions `<table>_pYYYYMMDD` managed by the writer `Client` (no default partition). Columns for filterable fields, nullable `attrs` JSONB for the rest. Table name must be an identifier of at most 40 chars. Always created, even when insights is disabled, to keep migrations linear. `dropStatements()` drops it (CASCADE drops partitions).
+- `insights_events` — insights events (migration 4; migration 5 added the `client` column and `(client, occurred_at)` index), `PARTITION BY RANGE (occurred_at)` with daily partitions `<table>_pYYYYMMDD` managed by the writer `Client` (no default partition). Columns for filterable fields, nullable `attrs` JSONB for the rest. Table name must be an identifier of at most 40 chars. Always created, even when insights is disabled, to keep migrations linear. `dropStatements()` drops it (CASCADE drops partitions).
 - `schema_migrations` — tracks applied migration versions (`version INTEGER PRIMARY KEY`, `applied_at TIMESTAMPTZ`)
 
 All data tables include a `version` column and an `attrs` JSONB column for the serialised entity.

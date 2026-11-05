@@ -159,7 +159,7 @@ Six tables are created on first `Init`:
 - **`alerts`** — Alert records
 - **`move_mappings`** — Issue move tracking between channels
 - **`channel_processing_state`** — Per-channel processing state (timestamps, last activity, open issue count)
-- **`insights_events`** — Insights events, range-partitioned by day on `occurred_at` (migration 4). Always created, but empty unless insights is enabled. Daily partitions are named `<table>_pYYYYMMDD`.
+- **`insights_events`** — Insights events, range-partitioned by day on `occurred_at` (migration 4; migration 5 added the `client` column and the `(client, occurred_at)` index). Always created, but empty unless insights is enabled. Daily partitions are named `<table>_pYYYYMMDD`.
 - **`schema_migrations`** — Migration tracking (version + applied timestamp)
 
 All data tables include a `version` column for data-format versioning and an `attrs` JSONB column for flexible storage (nullable in `insights_events`). The `issues` and `alerts` tables additionally include an `expires_at` column used for TTL.
@@ -214,9 +214,9 @@ The writer user must own the events table (it runs the DDL). Because retention i
 
 ### Event storage (`attrs`)
 
-Frequently filtered fields are columns (`type`, `reason`, `channel_id`, `related_channel_id`, `issue_id`, `correlation_id`, `severity`, `route_key`, `actor_id`). The rest is stored in the nullable `attrs` JSONB column, with the keys `prevSeverity`, `alertType`, `host`, `author`, `actorName`, `count`, `detail` and `values` (an object of numbers). `attrs` is `NULL` when all of them are empty. The row `version` is `InsightsEventModelVersion`.
+Frequently filtered fields are columns (`type`, `reason`, `channel_id`, `related_channel_id`, `issue_id`, `correlation_id`, `severity`, `route_key`, `actor_id`, `client`). The rest is stored in the nullable `attrs` JSONB column, with the keys `prevSeverity`, `alertType`, `host`, `author`, `actorName`, `count`, `detail` and `values` (an object of numbers). `attrs` is `NULL` when all of them are empty. The row `version` is `InsightsEventModelVersion`.
 
-Events contain some personal data: `actor_id` and `actorName` (the Slack user ID and real name of users who run commands), and the alert `host` and `author`. They are kept for the insights retention (`WithInsightsRetention`, default 30 days).
+Events contain some personal data: `actor_id` and `actorName` (the Slack user ID and real name of users who run commands), the alert `host` and `author`, and the `client` (it falls back to the alert `username`, which some integrations set to a person's name). They are kept for the insights retention (`WithInsightsRetention`, default 30 days).
 
 ### Read-only access
 
@@ -246,7 +246,7 @@ rows, err := reader.CountInsightsEvents(ctx, &types.InsightsCountQuery{...})
 
 - opens a single pool with `default_transaction_read_only=on` (writes are rejected by the server),
 - never runs migrations or DDL and never starts goroutines,
-- provides `CheckSchema`, which reads `MAX(version)` from the migrations table and fails if it is below 4 ("run Init with a privileged user first").
+- provides `CheckSchema`, which reads `MAX(version)` from the migrations table and fails if it is below 5 ("run Init with a privileged user first"). Version 5 added the `client` column that the reader queries, so upgrade the writer (which runs the migrations in `Init`) before the reader.
 
 Required grants (the partitions are read through the parent table, so new partitions need **no** additional grants; this is verified by the integration tests):
 
@@ -254,7 +254,11 @@ Required grants (the partitions are read through the parent table, so new partit
 GRANT SELECT ON issues, insights_events, schema_migrations TO insights_reader;
 ```
 
-(Use your configured table names.) `issues` is needed by `LoadOpenIssues`, `schema_migrations` by `CheckSchema`.
+(Use your configured table names.) `issues` is needed by `LoadOpenIssues`, `schema_migrations` by `CheckSchema`. The grants are table-level, so columns added by later migrations (such as `client` in migration 5) need no additional grants.
+
+### Migration 5 (`client` column)
+
+Migration 5 runs `ALTER TABLE <table> ADD COLUMN IF NOT EXISTS client TEXT NOT NULL DEFAULT ''` and `CREATE INDEX IF NOT EXISTS <table>_client_time_idx ON <table> (client, occurred_at)` on the partitioned parent table. PostgreSQL applies both to all existing partitions, and to partitions created later. Adding the column is a metadata-only change (no table rewrite); events recorded before the migration have an empty `client`. Building the index on existing partitions blocks inserts into the events table while it runs (insights writes may fail and lose their batch, alert processing is not affected); the time depends on the amount of retained events.
 
 Count and stats queries fetch one row more than the limit. Without an explicit `Limit`, a query matching more than `types.MaxInsightsRows` groups fails with `types.ErrInsightsTooManyRows`; with one, the extra rows are dropped.
 

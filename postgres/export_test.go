@@ -47,6 +47,17 @@ var (
 
 		return o.migrations()
 	}
+
+	// ExportMigrationStatements returns the statements of the migration with the given version (nil if none).
+	ExportMigrationStatements = func(version int, opts ...Option) []string {
+		for _, m := range ExportMigrations(opts...) {
+			if m.version == version {
+				return m.stmts
+			}
+		}
+
+		return nil
+	}
 )
 
 // Pool exports the internal pool interface for testing.
