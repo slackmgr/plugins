@@ -13,6 +13,8 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-05
+
 ### Changed
 - Integration tests run the shared `dbtests.TestSaveIssue_ComplexAlert`, which verifies that `Alert.Client` round-trips through the issue body. No schema or query changes: issues are stored as opaque JSON, so the client reaches `LastAlert` unchanged, and the plugin has no insights support
 - Bump `github.com/slackmgr/types` dependency to v0.11.0
@@ -86,7 +88,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-dynamodb-plugin` to `github.com/slackmgr/plugins/dynamodb`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.4.1...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.4.2...HEAD
+[0.4.2]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.4.1...dynamodb/v0.4.2
 [0.4.1]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.4.0...dynamodb/v0.4.1
 [0.4.0]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.6...dynamodb/v0.4.0
 [0.3.6]: https://github.com/slackmgr/plugins/compare/dynamodb/v0.3.5...dynamodb/v0.3.6
