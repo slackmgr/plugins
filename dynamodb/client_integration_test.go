@@ -104,3 +104,9 @@ func TestDeletingMoveMappings(t *testing.T) {
 func TestCreatingAndFindingChannelProcessingState(t *testing.T) {
 	dbtests.TestCreatingAndFindingChannelProcessingState(t, client)
 }
+
+// TestSaveIssue_ComplexAlert also verifies that the alert client (Alert.Client) round-trips through the opaque issue
+// body, via SaveIssue, FindOpenIssueByCorrelationID and LoadOpenIssuesInChannel.
+func TestSaveIssue_ComplexAlert(t *testing.T) {
+	dbtests.TestSaveIssue_ComplexAlert(t, client)
+}
