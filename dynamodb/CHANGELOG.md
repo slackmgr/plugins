@@ -14,7 +14,8 @@ For history prior to this monorepo migration, see the
 ## [Unreleased]
 
 ### Changed
-- Integration tests run the shared `dbtests.TestSaveIssue_ComplexAlert`, which (with the next `github.com/slackmgr/types` release) verifies that `Alert.Client` round-trips through the issue body. No schema or query changes: issues are stored as opaque JSON, so the client reaches `LastAlert` unchanged, and the plugin has no insights support
+- Integration tests run the shared `dbtests.TestSaveIssue_ComplexAlert`, which verifies that `Alert.Client` round-trips through the issue body. No schema or query changes: issues are stored as opaque JSON, so the client reaches `LastAlert` unchanged, and the plugin has no insights support
+- Bump `github.com/slackmgr/types` dependency to v0.11.0
 
 ## [0.4.1] - 2026-10-30
 
