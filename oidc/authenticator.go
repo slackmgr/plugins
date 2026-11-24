@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
@@ -27,7 +28,7 @@ const (
 )
 
 const (
-	maxPrincipalIDLength = 1000
+	maxPrincipalIDLength = types.MaxClientLength
 	maxScopes            = 100
 	maxScopeLength       = 200
 	maxAttributeLength   = 1000
@@ -255,8 +256,11 @@ func (a *Authenticator) principal(claims map[string]any) (*types.Principal, erro
 		return nil, fmt.Errorf("token has none of the principal ID claims %v: %w", a.options.principalIDClaims, types.ErrInvalidCredentials)
 	}
 
-	if len(id) > maxPrincipalIDLength {
-		return nil, fmt.Errorf("principal ID is longer than %d characters: %w", maxPrincipalIDLength, types.ErrInvalidCredentials)
+	id = a.options.principalIDPrefix + id
+
+	// Longer IDs are rejected, never truncated: truncation could make two principals share an ID.
+	if utf8.RuneCountInString(id) > maxPrincipalIDLength {
+		return nil, fmt.Errorf("principal ID (with prefix) is longer than %d characters: %w", maxPrincipalIDLength, types.ErrInvalidCredentials)
 	}
 
 	attributes := map[string]string{

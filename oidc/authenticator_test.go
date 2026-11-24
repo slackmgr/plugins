@@ -248,30 +248,34 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 		wantID  string
 		wantErr error
 	}{
-		{name: "valid token", key: "rsa1", wantID: "alertmanager"},
-		{name: "valid EC token", key: "ec", wantID: "alertmanager"},
+		{name: "valid token", key: "rsa1", wantID: "oidc:alertmanager"},
+		{name: "valid EC token", key: "ec", wantID: "oidc:alertmanager"},
 		{name: "ID token with nonce", key: "rsa1", claims: map[string]any{"nonce": "n-1"}, wantErr: types.ErrInvalidCredentials},
-		{name: "lower-case scheme", key: "rsa1", header: func(tok string) string { return "bearer " + tok }, wantID: "alertmanager"},
-		{name: "audience in array", key: "rsa1", claims: map[string]any{"aud": []string{"other", testAudience}}, wantID: "alertmanager"},
-		{name: "one of several accepted audiences", key: "rsa1", claims: map[string]any{"aud": "second"}, opts: []Option{WithAudience("second")}, wantID: "alertmanager"},
+		{name: "lower-case scheme", key: "rsa1", header: func(tok string) string { return "bearer " + tok }, wantID: "oidc:alertmanager"},
+		{name: "audience in array", key: "rsa1", claims: map[string]any{"aud": []string{"other", testAudience}}, wantID: "oidc:alertmanager"},
+		{name: "one of several accepted audiences", key: "rsa1", claims: map[string]any{"aud": "second"}, opts: []Option{WithAudience("second")}, wantID: "oidc:alertmanager"},
 		{name: "wrong audience", key: "rsa1", claims: map[string]any{"aud": "other"}, wantErr: types.ErrInvalidCredentials},
 		{name: "no audience", key: "rsa1", claims: map[string]any{"aud": nil}, wantErr: types.ErrInvalidCredentials},
 		{name: "wrong issuer", key: "rsa1", claims: map[string]any{"iss": "https://evil.example.com"}, wantErr: types.ErrInvalidCredentials},
 		{name: "expired", key: "rsa1", advance: 2 * time.Hour, wantErr: types.ErrInvalidCredentials},
-		{name: "expired within clock skew", key: "rsa1", advance: time.Hour + 30*time.Second, wantID: "alertmanager"},
+		{name: "expired within clock skew", key: "rsa1", advance: time.Hour + 30*time.Second, wantID: "oidc:alertmanager"},
 		{name: "expired beyond clock skew", key: "rsa1", advance: time.Hour + 30*time.Second, opts: []Option{WithClockSkew(0)}, wantErr: types.ErrInvalidCredentials},
 		{name: "no exp", key: "rsa1", claims: map[string]any{"exp": nil}, wantErr: types.ErrInvalidCredentials},
 		{name: "not yet valid", key: "rsa1", claims: map[string]any{"nbf": time.Date(2026, 11, 24, 13, 0, 0, 0, time.UTC).Unix()}, wantErr: types.ErrInvalidCredentials},
 		{name: "issued in the future", key: "rsa1", claims: map[string]any{"iat": time.Date(2026, 11, 24, 13, 0, 0, 0, time.UTC).Unix()}, wantErr: types.ErrInvalidCredentials},
 		{name: "unpublished key", key: "rsa2", wantErr: types.ErrInvalidCredentials},
 		{name: "algorithm not allowed", key: "ec", opts: []Option{WithSigningAlgorithms("RS256")}, wantErr: types.ErrInvalidCredentials},
-		{name: "azp when no client_id", key: "rsa1", claims: map[string]any{"client_id": nil, "azp": "grafana"}, wantID: "grafana"},
-		{name: "sub as last resort", key: "rsa1", claims: map[string]any{"client_id": nil, "sub": "svc-1"}, wantID: "svc-1"},
-		{name: "empty client_id is skipped", key: "rsa1", claims: map[string]any{"client_id": " ", "sub": "svc-1"}, wantID: "svc-1"},
-		{name: "custom principal ID claim", key: "rsa1", claims: map[string]any{"appid": "app-1"}, opts: []Option{WithPrincipalIDClaims("appid")}, wantID: "app-1"},
+		{name: "azp when no client_id", key: "rsa1", claims: map[string]any{"client_id": nil, "azp": "grafana"}, wantID: "oidc:grafana"},
+		{name: "sub as last resort", key: "rsa1", claims: map[string]any{"client_id": nil, "sub": "svc-1"}, wantID: "oidc:svc-1"},
+		{name: "empty client_id is skipped", key: "rsa1", claims: map[string]any{"client_id": " ", "sub": "svc-1"}, wantID: "oidc:svc-1"},
+		{name: "custom principal ID claim", key: "rsa1", claims: map[string]any{"appid": "app-1"}, opts: []Option{WithPrincipalIDClaims("appid")}, wantID: "oidc:app-1"},
 		{name: "no principal ID", key: "rsa1", claims: map[string]any{"client_id": nil}, wantErr: types.ErrInvalidCredentials},
 		{name: "non-string principal ID", key: "rsa1", claims: map[string]any{"client_id": 42}, wantErr: types.ErrInvalidCredentials},
-		{name: "too long principal ID", key: "rsa1", claims: map[string]any{"client_id": strings.Repeat("a", 1001)}, wantErr: types.ErrInvalidCredentials},
+		{name: "too long principal ID", key: "rsa1", claims: map[string]any{"client_id": strings.Repeat("a", types.MaxClientLength-len(DefaultPrincipalIDPrefix)+1)}, wantErr: types.ErrInvalidCredentials},
+		{name: "max length principal ID with prefix", key: "rsa1", claims: map[string]any{"client_id": strings.Repeat("é", types.MaxClientLength-len(DefaultPrincipalIDPrefix))}, wantID: DefaultPrincipalIDPrefix + strings.Repeat("é", types.MaxClientLength-len(DefaultPrincipalIDPrefix))},
+		{name: "custom prefix", key: "rsa1", opts: []Option{WithPrincipalIDPrefix("entra:")}, wantID: "entra:alertmanager"},
+		{name: "no prefix", key: "rsa1", opts: []Option{WithPrincipalIDPrefix("")}, wantID: "alertmanager"},
+		{name: "max length principal ID without prefix", key: "rsa1", claims: map[string]any{"client_id": strings.Repeat("a", types.MaxClientLength)}, opts: []Option{WithPrincipalIDPrefix("")}, wantID: strings.Repeat("a", types.MaxClientLength)},
 		{name: "no header", wantErr: types.ErrNoCredentials},
 		{name: "basic auth", header: func(string) string { return "Basic dXNlcjpwYXNz" }, wantErr: types.ErrNoCredentials},
 		{name: "API key bearer token", header: func(string) string { return "Bearer 3f2a9c0b5d" }, wantErr: types.ErrNoCredentials},
@@ -382,7 +386,7 @@ func TestAuthenticator_TokenTypeAndKeySelection(t *testing.T) {
 
 		p, err := authenticate(t, a, "Bearer "+sign(t, "rsa1", other.claims(clock, nil)))
 		require.NoError(t, err)
-		assert.Equal(t, "alertmanager", p.ID)
+		assert.Equal(t, "oidc:alertmanager", p.ID)
 	})
 
 	t.Run("other issuers do not trigger downloads", func(t *testing.T) {
@@ -559,7 +563,7 @@ func TestAuthenticator_KeyRotationAndRateLimit(t *testing.T) {
 
 	p, err := authenticate(t, a, "Bearer "+rotated)
 	require.NoError(t, err)
-	assert.Equal(t, "alertmanager", p.ID)
+	assert.Equal(t, "oidc:alertmanager", p.ID)
 	assert.EqualValues(t, 3, idp.jwksFetches.Load())
 
 	// A forged signature with a known key ID also counts against the rate limit.
@@ -633,7 +637,7 @@ func TestAuthenticator_MaxAgeAndOutages(t *testing.T) {
 
 		p, err := a.Authenticate(req)
 		require.NoError(t, err)
-		assert.Equal(t, "alertmanager", p.ID)
+		assert.Equal(t, "oidc:alertmanager", p.ID)
 		assert.EqualValues(t, 2, idp.jwksFetches.Load())
 
 		// The removed key is no longer accepted.
@@ -775,7 +779,7 @@ func TestAuthenticator_ChainWithAPIKeys(t *testing.T) {
 
 	for header, wantID := range map[string]string{
 		"Bearer api-key": "legacy",
-		"Bearer " + sign(t, "rsa1", idp.claims(clock, nil)): "alertmanager",
+		"Bearer " + sign(t, "rsa1", idp.claims(clock, nil)): "oidc:alertmanager",
 	} {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/alerts", nil)
 		req.Header.Set("Authorization", header)
@@ -840,6 +844,9 @@ func TestNew(t *testing.T) {
 		{name: "no algorithms", opts: []Option{WithSigningAlgorithms()}, wantErr: "at least one signing algorithm is required"},
 		{name: "no principal ID claims", opts: []Option{WithPrincipalIDClaims()}, wantErr: "principal ID claims (WithPrincipalIDClaims) cannot be empty"},
 		{name: "empty principal ID claim", opts: []Option{WithPrincipalIDClaims("sub", " ")}, wantErr: "principal ID claims (WithPrincipalIDClaims) must be non-empty"},
+		{name: "prefix without colon", opts: []Option{WithPrincipalIDPrefix("oidc")}, wantErr: `principal ID prefix (WithPrincipalIDPrefix) must end with ":"`},
+		{name: "prefix with whitespace", opts: []Option{WithPrincipalIDPrefix("my idp:")}, wantErr: "principal ID prefix (WithPrincipalIDPrefix)"},
+		{name: "too long prefix", opts: []Option{WithPrincipalIDPrefix(strings.Repeat("a", 50) + ":")}, wantErr: "at most 50 characters"},
 		{name: "empty scope claim", opts: []Option{WithScopeClaims("")}, wantErr: "scope claims (WithScopeClaims) must be non-empty"},
 		{name: "too long attribute claim", opts: []Option{WithAttributeClaims(strings.Repeat("a", 201))}, wantErr: "attribute claims (WithAttributeClaims) must be non-empty"},
 		{name: "reserved attribute claim", opts: []Option{WithAttributeClaims("sub", "auth_method")}, wantErr: `attribute claims (WithAttributeClaims) cannot be "auth_method" or "issuer"`},

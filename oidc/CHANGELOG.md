@@ -10,6 +10,16 @@ Versions are tagged using the `oidc/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+### Added
+
+- `WithPrincipalIDPrefix(string)`: prefix of principal IDs, default `oidc:` (`DefaultPrincipalIDPrefix`). A non-empty prefix must end with `:`, which the REST API does not allow in API key IDs, so OIDC principals cannot collide with API keys in access rules or client binding
+
+### Changed
+
+- **Breaking:** principal IDs have the prefix `oidc:` by default (e.g. `oidc:alertmanager`). Update access rules to the prefixed IDs (or match all with `oidc:*`), or use `WithPrincipalIDPrefix("")` to keep the old IDs
+- **Breaking:** the maximum principal ID length, including the prefix, is `types.MaxClientLength` (100 characters, was 1000 bytes), so that the ID is never truncated when it is bound to the alert client. Tokens with longer IDs are rejected
+- `WithPrincipalIDClaims` documents that only claims that clients and users cannot change may be used
+
 ## [0.1.0] - 2026-11-24
 
 ### Added

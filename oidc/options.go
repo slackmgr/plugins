@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/slackmgr/types"
@@ -23,6 +25,11 @@ const (
 	minJWKSMaxAge         = time.Minute
 	maxJWKSMaxAge         = 7 * 24 * time.Hour
 	maxClaimNameLength    = 200
+
+	// DefaultPrincipalIDPrefix is the default prefix of principal IDs (see [WithPrincipalIDPrefix]).
+	DefaultPrincipalIDPrefix = "oidc:"
+
+	maxPrincipalIDPrefixLength = 50
 )
 
 // supportedAlgorithms are the asymmetric signature algorithms that can be allowed with [WithSigningAlgorithms].
@@ -42,6 +49,7 @@ type options struct {
 	requiredTypes     []string
 	algorithms        []jose.SignatureAlgorithm
 	principalIDClaims []string
+	principalIDPrefix string
 	scopeClaims       []string
 	scopeMapping      map[string]string
 	attributeClaims   []string
@@ -58,6 +66,7 @@ func newOptions() *options {
 	return &options{
 		algorithms:        []jose.SignatureAlgorithm{jose.RS256, jose.PS256, jose.ES256},
 		principalIDClaims: []string{"client_id", "azp", "sub"},
+		principalIDPrefix: DefaultPrincipalIDPrefix,
 		scopeClaims:       []string{"scope", "scp"},
 		clockSkew:         defaultClockSkew,
 		httpClient:        &http.Client{Timeout: defaultHTTPTimeout, CheckRedirect: checkRedirect},
@@ -111,9 +120,30 @@ func WithSigningAlgorithms(algorithms ...string) Option {
 // preference: the first claim with a non-empty string value is used. The default is "client_id", "azp", "sub",
 // which identifies the client application for tokens from the OAuth2 client credentials flow with most identity
 // providers. A token without any of them is rejected.
+//
+// Only use claims that the identity provider sets and that clients and users cannot change, such as client_id,
+// azp, sub or oid. Never use claims that users can edit, such as preferred_username, email or name: the principal
+// ID decides the channel access rules and the alert client, so a user could take over another principal's rules.
 func WithPrincipalIDClaims(claims ...string) Option {
 	return func(o *options) {
 		o.principalIDClaims = trimAll(claims)
+	}
+}
+
+// WithPrincipalIDPrefix sets the prefix of principal IDs. The default is [DefaultPrincipalIDPrefix] ("oidc:"),
+// e.g. "oidc:my-client" for a token with client_id "my-client". The Slack Manager REST API does not allow ":" in
+// API key IDs, so prefixed IDs never collide with API keys in access rules or client binding. Match all OIDC
+// principals in an access rule with "oidc:*".
+//
+// A non-empty prefix must end with ":" and have no whitespace, at most 50 characters. Use different prefixes for
+// several authenticators (e.g. "entra:" and "keycloak:"), so that their principal IDs cannot collide either. An
+// empty prefix disables it: only do that if no claim value can equal an API key ID.
+//
+// The prefix counts towards the maximum principal ID length (types.MaxClientLength): tokens with longer IDs are
+// rejected.
+func WithPrincipalIDPrefix(prefix string) Option {
+	return func(o *options) {
+		o.principalIDPrefix = prefix
 	}
 }
 
@@ -234,6 +264,10 @@ func (o *options) validate() error {
 		return err
 	}
 
+	if err := validatePrincipalIDPrefix(o.principalIDPrefix); err != nil {
+		return err
+	}
+
 	if err := validateClaimNames("scope claims (WithScopeClaims)", o.scopeClaims, false); err != nil {
 		return err
 	}
@@ -297,4 +331,18 @@ func trimAll(values []string) []string {
 	}
 
 	return result
+}
+
+// validatePrincipalIDPrefix checks that the prefix is empty, or ends with ":" and has no whitespace, at most
+// maxPrincipalIDPrefixLength characters.
+func validatePrincipalIDPrefix(prefix string) error {
+	if prefix == "" {
+		return nil
+	}
+
+	if !strings.HasSuffix(prefix, ":") || strings.IndexFunc(prefix, unicode.IsSpace) >= 0 || utf8.RuneCountInString(prefix) > maxPrincipalIDPrefixLength {
+		return fmt.Errorf("principal ID prefix (WithPrincipalIDPrefix) must end with \":\" and have no whitespace, at most %d characters", maxPrincipalIDPrefixLength)
+	}
+
+	return nil
 }

@@ -49,7 +49,7 @@ Bearer tokens that are not JWTs (e.g. Slack Manager API keys) are left to other 
 
 | Principal field | Source | Option |
 |---|---|---|
-| `ID` | First non-empty claim of `client_id`, `azp`, `sub` | `WithPrincipalIDClaims` |
+| `ID` | `oidc:` + first non-empty claim of `client_id`, `azp`, `sub` | `WithPrincipalIDPrefix`, `WithPrincipalIDClaims` |
 | `Scopes` | `scope` (space-separated string) and `scp` (string or array) | `WithScopeClaims`, `WithScopeMapping` |
 | `Attributes` | `auth_method` (`oidc`), `issuer`, and selected string claims | `WithAttributeClaims` |
 
@@ -63,7 +63,11 @@ oidc.WithScopeMapping(map[string]string{
 }),
 ```
 
-The principal ID is what the API logs, matches against channel access rules (`accessRules` in the API settings), and binds to the alert `client` (`APIConfig.Auth.ClientBinding`).
+The principal ID is what the API logs, matches against channel access rules (`accessRules` in the API settings), and binds to the alert `client` (`APIConfig.Auth.ClientBinding`). It has the prefix `oidc:` (e.g. `oidc:alertmanager`), and API key IDs cannot contain `:`, so an OIDC client can never get the access rules of an API key with the same name. Match all OIDC clients in an access rule with `oidc:*`. With several `oidc` authenticators, give each its own prefix (e.g. `entra:`, `keycloak:`).
+
+The principal ID, including the prefix, can be at most 100 characters (`types.MaxClientLength`): tokens with longer IDs are rejected (HTTP 401), never truncated.
+
+Only use principal ID claims that the identity provider sets and that clients and users cannot change (`client_id`, `azp`, `sub`, `oid`). Never use editable claims such as `preferred_username`, `email` or `name`: a user could pick a value that matches another principal's access rules.
 
 ## Key set caching
 
@@ -81,6 +85,7 @@ Tokens from other issuers are rejected before the key set is consulted, so chain
 | `WithRequiredTokenType(...string)` | any | Required `typ` header values, e.g. `at+jwt` |
 | `WithSigningAlgorithms(...string)` | `RS256`, `PS256`, `ES256` | Allowed algorithms (RS\*, PS\*, ES\*, EdDSA only) |
 | `WithPrincipalIDClaims(...string)` | `client_id`, `azp`, `sub` | Claims for the principal ID, in order of preference |
+| `WithPrincipalIDPrefix(string)` | `oidc:` | Prefix of principal IDs; must end with `:` (empty disables it) |
 | `WithScopeClaims(...string)` | `scope`, `scp` | Claims with scopes (space-separated string or array) |
 | `WithScopeMapping(map[string]string)` | — | Rename token scopes to Slack Manager scopes |
 | `WithAttributeClaims(...string)` | — | String claims copied to the principal's attributes |

@@ -26,7 +26,8 @@
 //
 // # Claims
 //
-// The principal ID is the first non-empty claim of [WithPrincipalIDClaims] (default client_id, azp, sub). The
+// The principal ID is the first non-empty claim of [WithPrincipalIDClaims] (default client_id, azp, sub), with the
+// prefix of [WithPrincipalIDPrefix] (default "oidc:"), at most types.MaxClientLength characters. The
 // scopes are read from [WithScopeClaims] (default scope and scp), and can be renamed with [WithScopeMapping], e.g.
 // for identity providers that cannot issue scopes named alerts:write.
 //
