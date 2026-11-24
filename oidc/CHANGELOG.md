@@ -10,6 +10,8 @@ Versions are tagged using the `oidc/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-24
+
 ### Added
 
 - `WithPrincipalIDPrefix(string)`: prefix of principal IDs, default `oidc:` (`DefaultPrincipalIDPrefix`). A non-empty prefix must end with `:`, which the REST API does not allow in API key IDs, so OIDC principals cannot collide with API keys in access rules or client binding
@@ -33,5 +35,6 @@ Versions are tagged using the `oidc/vX.Y.Z` convention per the
 - Stale key sets are refreshed in the background, downloads are detached from the request that triggered them, tokens of other issuers never trigger downloads, and keys are matched by key ID and algorithm
 - The default HTTP client only follows redirects to https URLs (or http URLs of localhost)
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/oidc/v0.1.0...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/oidc/v0.2.0...HEAD
+[0.2.0]: https://github.com/slackmgr/plugins/compare/oidc/v0.1.0...oidc/v0.2.0
 [0.1.0]: https://github.com/slackmgr/plugins/releases/tag/oidc/v0.1.0
