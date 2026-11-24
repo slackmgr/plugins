@@ -10,6 +10,8 @@ Versions are tagged using the `oidc/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-24
+
 ### Added
 
 - `Authenticator`: a `types.Authenticator` for the Slack Manager REST API that validates OIDC/OAuth2 access tokens (JWTs) sent as bearer tokens: signature with the issuer's key set (asymmetric algorithms only), `iss`, `aud`, `exp`, `nbf` and `iat` with clock skew
@@ -21,4 +23,5 @@ Versions are tagged using the `oidc/vX.Y.Z` convention per the
 - Stale key sets are refreshed in the background, downloads are detached from the request that triggered them, tokens of other issuers never trigger downloads, and keys are matched by key ID and algorithm
 - The default HTTP client only follows redirects to https URLs (or http URLs of localhost)
 
-[Unreleased]: https://github.com/slackmgr/plugins/commits/main/oidc
+[Unreleased]: https://github.com/slackmgr/plugins/compare/oidc/v0.1.0...HEAD
+[0.1.0]: https://github.com/slackmgr/plugins/releases/tag/oidc/v0.1.0
