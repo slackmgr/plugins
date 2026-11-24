@@ -14,6 +14,7 @@ plugins/
 ├── .github/workflows/ci-dynamodb.yml # CI for dynamodb (path-filtered)
 ├── .github/workflows/ci-postgres.yml # CI for postgres (path-filtered)
 ├── .github/workflows/ci-pubsub.yml   # CI for pubsub (path-filtered)
+├── .github/workflows/ci-oidc.yml     # CI for oidc (path-filtered)
 ├── .golangci.yaml             # Shared linter config (discovered by golangci-lint in each subdir)
 ├── sqs/                       # AWS SQS plugin — module: github.com/slackmgr/plugins/sqs
 │   ├── go.mod
@@ -28,6 +29,10 @@ plugins/
 │   ├── go.sum
 │   └── CLAUDE.md
 ├── pubsub/                    # GCP Pub/Sub plugin — module: github.com/slackmgr/plugins/pubsub
+│   ├── go.mod
+│   ├── go.sum
+│   └── CLAUDE.md
+├── oidc/                      # OIDC access token authenticator — module: github.com/slackmgr/plugins/oidc
 │   ├── go.mod
 │   ├── go.sum
 │   └── CLAUDE.md

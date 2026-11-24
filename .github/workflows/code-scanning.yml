@@ -54,6 +54,7 @@ jobs:
         cache-dependency-path: |
           go.work
           dynamodb/go.sum
+          oidc/go.sum
           postgres/go.sum
           pubsub/go.sum
           sqs/go.sum
@@ -94,6 +95,7 @@ jobs:
         cache-dependency-path: |
           go.work
           dynamodb/go.sum
+          oidc/go.sum
           postgres/go.sum
           pubsub/go.sum
           sqs/go.sum
@@ -104,7 +106,7 @@ jobs:
     - name: Run govulncheck
       run: |
         mkdir -p vuln-sarif
-        for plugin in sqs dynamodb postgres pubsub; do
+        for plugin in sqs dynamodb postgres pubsub oidc; do
           govulncheck -C $plugin -format sarif ./... > vuln-sarif/${plugin}.sarif || true
         done
         jq -s '

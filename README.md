@@ -12,6 +12,7 @@ Each plugin is a separate Go module living in its own subdirectory. Modules are 
 | [dynamodb](./dynamodb/) | `github.com/slackmgr/plugins/dynamodb` | AWS DynamoDB storage backend |
 | [postgres](./postgres/) | `github.com/slackmgr/plugins/postgres` | PostgreSQL storage backend |
 | [pubsub](./pubsub/) | `github.com/slackmgr/plugins/pubsub` | Google Cloud Pub/Sub queue consumer and webhook handler |
+| [oidc](./oidc/) | `github.com/slackmgr/plugins/oidc` | OIDC/OAuth2 access token authentication for the REST API |
 
 ## Versioning
 
