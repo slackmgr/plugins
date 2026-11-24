@@ -10,6 +10,11 @@ Versions are tagged using the `pubsub/vX.Y.Z` convention per the
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `github.com/slackmgr/types` to v0.15.0
+- Bump `go.opentelemetry.io/otel` (and `otel/metric`, `otel/trace`) to v1.47.0 (indirect), fixing vulnerability GO-2026-6974 in `otel/trace` v1.44.0
+
 ## [0.2.1] - 2026-10-30
 
 ### Changed

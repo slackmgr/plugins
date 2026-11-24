@@ -13,6 +13,10 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `github.com/slackmgr/types` to v0.15.0
+
 ## [0.8.0] - 2026-11-05
 
 ### Added
