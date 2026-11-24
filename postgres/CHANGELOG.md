@@ -13,6 +13,8 @@ For history prior to this monorepo migration, see the
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-24
+
 ### Changed
 
 - Bump `github.com/slackmgr/types` to v0.15.0
@@ -154,7 +156,8 @@ _Initial version in the slackmgr/plugins monorepo. For prior history see the
 
 - Module path updated from `github.com/slackmgr/slack-manager-postgres-plugin` to `github.com/slackmgr/plugins/postgres`
 
-[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.8.0...HEAD
+[Unreleased]: https://github.com/slackmgr/plugins/compare/postgres/v0.8.1...HEAD
+[0.8.1]: https://github.com/slackmgr/plugins/compare/postgres/v0.8.0...postgres/v0.8.1
 [0.8.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.7.0...postgres/v0.8.0
 [0.7.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.6.0...postgres/v0.7.0
 [0.6.0]: https://github.com/slackmgr/plugins/compare/postgres/v0.5.5...postgres/v0.6.0
